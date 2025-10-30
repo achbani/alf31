@@ -8,7 +8,7 @@
     <packaging>jar</packaging>
 
     <parent>
-        <groupId>com.inetum</groupId>
+        <groupId>org.alfresco</groupId>
         <artifactId>alf31</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
