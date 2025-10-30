@@ -20,5 +20,14 @@
 	   xsi:schemaLocation="http://www.springframework.org/schema/beans
           http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
 
+    <bean id="webscript.org.alfresco.extract.extract-start.post"
+          class="org.alfresco.webscripts.extract.ExtractWebScript"
+          parent="webscript">
+        <property name="nodeService" ref="nodeService"/>
+        <property name="searchService" ref="searchService"/>
+        <property name="contentService" ref="contentService"/>
+        <property name="repository" ref="repositoryHelper" />
+        <property name="retryingTransactionHelper" ref="retryingTransactionHelper" />
+    </bean>
 
 </beans>

@@ -1,0 +1,9 @@
+<webscript>
+  <shortname>Extract Form</shortname>
+  <description>Form to trigger document extraction</description>
+  <url>/gedaff/extract/form</url>
+  <format default="html">extension</format>
+  <authentication runas="admin">user</authentication>
+  <transaction>none</transaction>
+  <family>TravoDoc</family>
+</webscript>

@@ -1,0 +1,12 @@
+<webscript>
+  <shortname>gedaff-extract</shortname>
+  <description>Start the document extraction process</description>
+  <url>/gedaff/extract/start</url>
+  <format default="html">extension</format>
+  <authentication runas="admin">user</authentication>
+  <transaction>required</transaction>
+  <cache>
+    <never>true</never>
+  </cache>
+  <family>TravoDoc</family>
+</webscript>
