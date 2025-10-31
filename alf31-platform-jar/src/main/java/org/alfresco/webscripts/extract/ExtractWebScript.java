@@ -119,43 +119,63 @@ public class ExtractWebScript extends DeclarativeWebScript {
      */
     private void performExport() {
         try {
-            // Initialize log file
-            initLogFile();
+            // Wrap entire export in a transaction
+            retryingTransactionHelper.doInTransaction(new RetryingTransactionHelper.RetryingTransactionCallback<Void>() {
+                @Override
+                public Void execute() throws Throwable {
+                    // Initialize log file
+                    initLogFile();
 
-            logToFileAndConsole("INFO", "========================================");
-            logToFileAndConsole("INFO", "Starting export process - Job ID: " + jobId);
-            logToFileAndConsole("INFO", String.format("Parameters: maxDocs=%d, basePath=%s", maxDocs, extractionBasePath));
-            logToFileAndConsole("INFO", String.format("Keywords: '%s'", keywords != null && !keywords.isEmpty() ? keywords : "(none)"));
-            logToFileAndConsole("INFO", String.format("Mimetype: %s", mimetype != null && !mimetype.isEmpty() ? mimetype : "(all)"));
-            logToFileAndConsole("INFO", "========================================");
+                    logToFileAndConsole("INFO", "========================================");
+                    logToFileAndConsole("INFO", "Starting export process - Job ID: " + jobId);
+                    logToFileAndConsole("INFO", String.format("Parameters: maxDocs=%d, basePath=%s", maxDocs, extractionBasePath));
+                    logToFileAndConsole("INFO", String.format("Keywords: '%s'", keywords != null && !keywords.isEmpty() ? keywords : "(none)"));
+                    logToFileAndConsole("INFO", String.format("Mimetype: %s", mimetype != null && !mimetype.isEmpty() ? mimetype : "(all)"));
+                    logToFileAndConsole("INFO", "========================================");
 
-            exportStatusService.updateStatus(jobId, "RUNNING", 0, "Validation du chemin d'extraction...");
+                    exportStatusService.updateStatus(jobId, "RUNNING", 0, "Validation du chemin d'extraction...");
 
-            // Validate extraction path
-            validateExtractionPath();
-            exportStatusService.updateExtractionPath(jobId, extractionPath);
+                    // Validate extraction path
+                    validateExtractionPath();
+                    exportStatusService.updateExtractionPath(jobId, extractionPath);
 
-            exportStatusService.updateStatus(jobId, "RUNNING", 0, "Recherche des documents en cours...");
+                    exportStatusService.updateStatus(jobId, "RUNNING", 0, "Recherche des documents en cours...");
 
-            // Perform search and extraction
-            int extractedCount = performSearchAndExtract();
+                    // Perform search and extraction
+                    int extractedCount = performSearchAndExtract();
 
-            // Build result
-            String exitMessage = String.format("Export terminé avec succès. %d documents extraits.", extractedCount);
-            logToFileAndConsole("INFO", exitMessage);
-            logToFileAndConsole("INFO", "========================================");
+                    // Build result
+                    String exitMessage = String.format("Export terminé avec succès. %d documents extraits.", extractedCount);
+                    logToFileAndConsole("INFO", exitMessage);
+                    logToFileAndConsole("INFO", "========================================");
 
-            exportStatusService.updateStatus(jobId, "COMPLETED", extractedCount, exitMessage);
+                    exportStatusService.updateStatus(jobId, "COMPLETED", extractedCount, exitMessage);
+
+                    return null;
+                }
+            }, false, true);
 
         } catch (Exception e) {
             String errorMsg = "Erreur lors de l'extraction: " + e.getMessage();
-            logToFileAndConsole("ERROR", errorMsg);
-            logger.error("Extraction failed", e);
+            logger.error("Extraction failed for job " + jobId, e);
+
+            // Try to log error to file if possible
+            try {
+                if (logFileRef != null) {
+                    logToFileAndConsole("ERROR", errorMsg);
+                }
+            } catch (Exception logError) {
+                logger.error("Failed to log error to file", logError);
+            }
 
             exportStatusService.updateStatus(jobId, "FAILED", docCount.get(), errorMsg);
 
         } finally {
-            closeLogFile();
+            try {
+                closeLogFile();
+            } catch (Exception e) {
+                logger.error("Error closing log file", e);
+            }
         }
     }
 
