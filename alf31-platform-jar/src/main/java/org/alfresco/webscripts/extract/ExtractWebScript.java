@@ -28,8 +28,8 @@ public class ExtractWebScript extends DeclarativeWebScript {
     private static final String LOG_FILE_PREFIX = "Export_";
     private static final String LOG_FILE_SUFFIX = ".log";
 
-    public static final String MODEL_NAMESPACE = "http://www.alfresco.org/model/gedaff/1.0";
-    public static final QName ASPECT_CHECKED = QName.createQName(MODEL_NAMESPACE, "checked");
+    //public static final String MODEL_NAMESPACE = "http://www.alfresco.org/model/content/1.0";
+    //public static final QName ASPECT_CHECKED = QName.createQName(MODEL_NAMESPACE, "checked");
 
     private final AtomicInteger docCount = new AtomicInteger(0);
     private final Set<String> processedSiteIds = new HashSet<>();
@@ -122,7 +122,7 @@ public class ExtractWebScript extends DeclarativeWebScript {
                         AuthenticationUtil.RunAsWork<Void> addAspectWork = () -> {
                             extractDocuments(siteRef);
                             RetryingTransactionHelper.RetryingTransactionCallback<Void> addAspectCallback = () -> {
-                                nodeService.addAspect(siteRef, ASPECT_CHECKED, null);
+                               // nodeService.addAspect(siteRef, ASPECT_CHECKED, null);
                                 return null;
                             };
                             return retryingTransactionHelper.doInTransaction(addAspectCallback);
@@ -174,9 +174,9 @@ public class ExtractWebScript extends DeclarativeWebScript {
                         AuthenticationUtil.RunAsWork<NodeRef> processSite = () -> {
                             RetryingTransactionHelper.RetryingTransactionCallback<NodeRef> extractSiteWork = () -> {
                                 extractDocuments(siteRef);
-                                if (!nodeService.hasAspect(siteRef, ASPECT_CHECKED)) {
-                                    nodeService.addAspect(siteRef, ASPECT_CHECKED, null);
-                                }
+                                //if (!nodeService.hasAspect(siteRef, ASPECT_CHECKED)) {
+                                //    nodeService.addAspect(siteRef, ASPECT_CHECKED, null);
+                                //}
                                 return null;
                             };
                             return retryingTransactionHelper.doInTransaction(extractSiteWork, false, true);
