@@ -46,7 +46,7 @@ public class ExtractWebScript extends DeclarativeWebScript {
     private String extractionPath;
     private int maxDocs;
     private String keywords;
-    private List<String> mimetypes;
+    private String mimetype;
 
     // Logging
     private NodeRef logFileRef;
@@ -84,9 +84,8 @@ public class ExtractWebScript extends DeclarativeWebScript {
         logToFileAndConsole("INFO", "========================================");
         logToFileAndConsole("INFO", "Starting export process");
         logToFileAndConsole("INFO", String.format("Parameters: maxDocs=%d, path=%s", maxDocs, extractionPath));
-        logToFileAndConsole("INFO", String.format("Keywords: '%s'", keywords != null ? keywords : "(none)"));
-        logToFileAndConsole("INFO", String.format("Mimetypes: %s", mimetypes != null && !mimetypes.isEmpty() ?
-            String.join(", ", mimetypes) : "(all)"));
+        logToFileAndConsole("INFO", String.format("Keywords: '%s'", keywords != null && !keywords.isEmpty() ? keywords : "(none)"));
+        logToFileAndConsole("INFO", String.format("Mimetype: %s", mimetype != null && !mimetype.isEmpty() ? mimetype : "(all)"));
         logToFileAndConsole("INFO", "========================================");
 
         Map<String, Object> model = new HashMap<>();
@@ -138,39 +137,16 @@ public class ExtractWebScript extends DeclarativeWebScript {
         String keywordsParam = req.getParameter("keywords");
         this.keywords = (keywordsParam != null) ? keywordsParam.trim() : "";
 
-        // Handle multiple mimetypes from form (can be sent as multiple parameters with same name)
-        String[] mimetypeParams = req.getParameterValues("mimetypes");
-        if (mimetypeParams != null && mimetypeParams.length > 0) {
-            this.mimetypes = new ArrayList<>();
-            for (String mimetype : mimetypeParams) {
-                if (mimetype != null && !mimetype.trim().isEmpty()) {
-                    this.mimetypes.add(mimetype.trim());
-                }
-            }
-        } else {
-            this.mimetypes = new ArrayList<>();
-        }
+        // Handle single mimetype selection
+        String mimetypeParam = req.getParameter("mimetype");
+        this.mimetype = (mimetypeParam != null && !mimetypeParam.isEmpty()) ?
+            mimetypeParam.trim() : "";
     }
 
-    /**
-     * Parse comma-separated mimetype string into a list.
-     */
-    private List<String> parseMimetypes(String mimetypesStr) {
-        List<String> result = new ArrayList<>();
-        if (mimetypesStr != null && !mimetypesStr.trim().isEmpty()) {
-            String[] parts = mimetypesStr.split(",");
-            for (String part : parts) {
-                String trimmed = part.trim();
-                if (!trimmed.isEmpty()) {
-                    result.add(trimmed);
-                }
-            }
-        }
-        return result;
-    }
 
     /**
      * Validate extraction path for security and existence.
+     * Creates a dated subfolder for this export.
      */
     private void validateExtractionPath() throws IOException {
         if (extractionPath == null || extractionPath.trim().isEmpty()) {
@@ -182,16 +158,25 @@ public class ExtractWebScript extends DeclarativeWebScript {
             throw new SecurityException("Invalid extraction path - forbidden characters detected");
         }
 
-        // Create directory if it doesn't exist
-        Path path = Paths.get(extractionPath);
-        if (!Files.exists(path)) {
-            Files.createDirectories(path);
-            logToFileAndConsole("INFO", "Created extraction directory: " + extractionPath);
+        // Create base directory if it doesn't exist
+        Path basePath = Paths.get(extractionPath);
+        if (!Files.exists(basePath)) {
+            Files.createDirectories(basePath);
+            logToFileAndConsole("INFO", "Created base extraction directory: " + extractionPath);
         }
+
+        // Create dated subfolder: Export_YYYYMMDD_HHmmss
+        String dateFolder = "Export_" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        Path datedPath = basePath.resolve(dateFolder);
+        Files.createDirectories(datedPath);
+
+        // Update extractionPath to point to the dated subfolder
+        this.extractionPath = datedPath.toString();
+        logToFileAndConsole("INFO", "Created dated export directory: " + this.extractionPath);
     }
 
     /**
-     * Build FTS-Alfresco search query based on keywords and mimetypes.
+     * Build FTS-Alfresco search query based on keywords and mimetype.
      */
     private String buildSearchQuery() {
         StringBuilder query = new StringBuilder();
@@ -215,16 +200,8 @@ public class ExtractWebScript extends DeclarativeWebScript {
         }
 
         // Add mimetype filter if present
-        if (mimetypes != null && !mimetypes.isEmpty()) {
-            query.append(" AND (");
-            for (int i = 0; i < mimetypes.size(); i++) {
-                if (i > 0) {
-                    query.append(" OR ");
-                }
-                // Note: escape the colon in the property name
-                query.append("@cm\\:content.mimetype:\"").append(mimetypes.get(i)).append("\"");
-            }
-            query.append(")");
+        if (mimetype != null && !mimetype.trim().isEmpty()) {
+            query.append(" AND @cm\\:content.mimetype:\"").append(mimetype).append("\"");
         }
 
         return query.toString();

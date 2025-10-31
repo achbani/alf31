@@ -96,10 +96,11 @@
                 <small>Recherche dans le nom, titre, description et contenu des documents. Laissez vide pour tous les documents.</small>
             </div>
 
-            <!-- Champ 2 : Types MIME (multi-sélection) -->
+            <!-- Champ 2 : Type MIME (sélection unique) -->
             <div class="form-group">
-                <label for="mimetypes">Types de documents :</label>
-                <select id="mimetypes" name="mimetypes" multiple size="10">
+                <label for="mimetype">Type de document :</label>
+                <select id="mimetype" name="mimetype">
+                    <option value="">Tous les types</option>
                     <option value="application/pdf">PDF</option>
                     <option value="application/msword">Word (.doc)</option>
                     <option value="application/vnd.openxmlformats-officedocument.wordprocessingml.document">Word (.docx)</option>
@@ -112,7 +113,7 @@
                     <option value="text/plain">Fichiers texte</option>
                     <option value="text/html">Fichiers HTML</option>
                 </select>
-                <small>Maintenez Ctrl (Windows) ou Cmd (Mac) pour sélectionner plusieurs types. Vide = tous les types de documents.</small>
+                <small>Sélectionnez un type de document ou laissez "Tous les types" pour exporter tous les formats.</small>
             </div>
 
             <!-- Champ 3 : Chemin d'extraction (existant) -->
