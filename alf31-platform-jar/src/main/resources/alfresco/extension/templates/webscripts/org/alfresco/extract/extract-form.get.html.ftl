@@ -116,20 +116,16 @@
                 <small>Sélectionnez un type de document ou laissez "Tous les types" pour exporter tous les formats.</small>
             </div>
 
-            <!-- Champ 3 : Chemin d'extraction (existant) -->
-            <div class="form-group">
-                <label for="extractionPath">Chemin d'extraction NAS : <span class="required">*</span></label>
-                <input type="text" id="extractionPath" name="extractionPath"
-                       value="/mnt/contentstore2/ExtractionTravodoc" required />
-                <small>Chemin absolu sur le serveur Alfresco où les documents seront exportés.</small>
-            </div>
-
-            <!-- Champ 4 : Limite de documents (existant) -->
+            <!-- Champ 3 : Nombre maximum de documents -->
             <div class="form-group">
                 <label for="maxDocs">Nombre maximum de documents : <span class="required">*</span></label>
                 <input type="number" id="maxDocs" name="maxDocs"
                        value="40000" min="1" max="100000" required />
                 <small>Nombre maximum de documents à exporter (entre 1 et 100 000).</small>
+            </div>
+
+            <div class="info" style="margin-bottom: 20px; padding: 10px; background-color: #d1ecf1; color: #0c5460; border-radius: 4px; font-size: 14px;">
+                <strong>Note :</strong> Le chemin d'extraction est configuré par l'administrateur système dans alfresco-global.properties.
             </div>
 
             <button type="submit">Lancer l'export</button>

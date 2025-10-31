@@ -28,6 +28,7 @@
         <property name="contentService" ref="contentService"/>
         <property name="repository" ref="repositoryHelper" />
         <property name="retryingTransactionHelper" ref="retryingTransactionHelper" />
+        <property name="extractionBasePath" value="${extraction.base.path}" />
     </bean>
 
 </beans>

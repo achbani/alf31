@@ -43,7 +43,8 @@ public class ExtractWebScript extends DeclarativeWebScript {
     private RetryingTransactionHelper retryingTransactionHelper;
 
     // Extraction parameters
-    private String extractionPath;
+    private String extractionBasePath;  // Configured via Spring from alfresco-global.properties
+    private String extractionPath;      // Actual path including dated subfolder
     private int maxDocs;
     private String keywords;
     private String mimetype;
@@ -83,7 +84,7 @@ public class ExtractWebScript extends DeclarativeWebScript {
 
         logToFileAndConsole("INFO", "========================================");
         logToFileAndConsole("INFO", "Starting export process");
-        logToFileAndConsole("INFO", String.format("Parameters: maxDocs=%d, path=%s", maxDocs, extractionPath));
+        logToFileAndConsole("INFO", String.format("Parameters: maxDocs=%d, basePath=%s", maxDocs, extractionBasePath));
         logToFileAndConsole("INFO", String.format("Keywords: '%s'", keywords != null && !keywords.isEmpty() ? keywords : "(none)"));
         logToFileAndConsole("INFO", String.format("Mimetype: %s", mimetype != null && !mimetype.isEmpty() ? mimetype : "(all)"));
         logToFileAndConsole("INFO", "========================================");
@@ -130,10 +131,6 @@ public class ExtractWebScript extends DeclarativeWebScript {
         this.maxDocs = (maxDocsParam != null && !maxDocsParam.isEmpty()) ?
             Integer.parseInt(maxDocsParam) : 40000;
 
-        String pathParam = req.getParameter("extractionPath");
-        this.extractionPath = (pathParam != null && !pathParam.isEmpty()) ?
-            pathParam : "/mnt/contentstore2/ExtractionTravodoc";
-
         String keywordsParam = req.getParameter("keywords");
         this.keywords = (keywordsParam != null) ? keywordsParam.trim() : "";
 
@@ -141,29 +138,50 @@ public class ExtractWebScript extends DeclarativeWebScript {
         String mimetypeParam = req.getParameter("mimetype");
         this.mimetype = (mimetypeParam != null && !mimetypeParam.isEmpty()) ?
             mimetypeParam.trim() : "";
+
+        // extractionBasePath is injected via Spring from alfresco-global.properties
+        // No need to get it from request parameters
     }
 
 
     /**
-     * Validate extraction path for security and existence.
-     * Creates a dated subfolder for this export.
+     * Validate extraction base path and create dated subfolder.
+     * The base path must exist (not created by code for security reasons).
      */
     private void validateExtractionPath() throws IOException {
-        if (extractionPath == null || extractionPath.trim().isEmpty()) {
-            throw new IllegalArgumentException("Extraction path cannot be empty");
+        // Check that extractionBasePath is configured
+        if (extractionBasePath == null || extractionBasePath.trim().isEmpty()) {
+            throw new IllegalArgumentException(
+                "Extraction base path is not configured. " +
+                "Please set 'extraction.base.path' in alfresco-global.properties"
+            );
         }
 
-        // Security check: prevent directory traversal
-        if (extractionPath.contains("..") || extractionPath.contains("~")) {
-            throw new SecurityException("Invalid extraction path - forbidden characters detected");
-        }
-
-        // Create base directory if it doesn't exist
-        Path basePath = Paths.get(extractionPath);
+        // Check that base directory exists (do NOT create it)
+        Path basePath = Paths.get(extractionBasePath);
         if (!Files.exists(basePath)) {
-            Files.createDirectories(basePath);
-            logToFileAndConsole("INFO", "Created base extraction directory: " + extractionPath);
+            String errorMsg = String.format(
+                "WARNING: Base extraction directory does not exist: %s. " +
+                "Please create this directory and ensure the Alfresco process has write permissions. " +
+                "Configure the path in alfresco-global.properties using 'extraction.base.path' property.",
+                extractionBasePath
+            );
+            logToFileAndConsole("ERROR", errorMsg);
+            throw new IOException(errorMsg);
         }
+
+        // Check that base directory is writable
+        if (!Files.isWritable(basePath)) {
+            String errorMsg = String.format(
+                "WARNING: Base extraction directory is not writable: %s. " +
+                "Please grant write permissions to the Alfresco process.",
+                extractionBasePath
+            );
+            logToFileAndConsole("ERROR", errorMsg);
+            throw new IOException(errorMsg);
+        }
+
+        logToFileAndConsole("INFO", "Base extraction directory verified: " + extractionBasePath);
 
         // Create dated subfolder: Export_YYYYMMDD_HHmmss
         String dateFolder = "Export_" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
@@ -464,11 +482,7 @@ public class ExtractWebScript extends DeclarativeWebScript {
         this.retryingTransactionHelper = helper;
     }
 
-    public void setExtractionPath(String path) {
-        this.extractionPath = path;
-    }
-
-    public void setMaxDocs(int maxDocs) {
-        this.maxDocs = maxDocs;
+    public void setExtractionBasePath(String path) {
+        this.extractionBasePath = path;
     }
 }
