@@ -85,8 +85,8 @@
 </head>
 <body>
     <div class="container">
-        <h1>Export de documents Alfresco</h1>
-        <form action="/alfresco/s/gedaff/extract/start" method="POST">
+        <h1>Export de documents</h1>
+        <form action="/alfresco/s/gedaff/export/start" method="POST">
 
             <!-- Champ 1 : Recherche par mots-clés -->
             <div class="form-group">

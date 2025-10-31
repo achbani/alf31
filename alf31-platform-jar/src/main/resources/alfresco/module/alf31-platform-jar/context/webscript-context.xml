@@ -20,14 +20,9 @@
 	   xsi:schemaLocation="http://www.springframework.org/schema/beans
           http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
 
-    <!-- Export Status Service (singleton) -->
-    <bean id="exportStatusService"
-          class="org.alfresco.webscripts.extract.ExportStatusService">
-    </bean>
-
-    <!-- Extract WebScript (POST - starts export) -->
-    <bean id="webscript.org.alfresco.extract.extract-start.post"
-          class="org.alfresco.webscripts.extract.ExtractWebScript"
+    <!-- Export WebScript (POST - starts export) -->
+    <bean id="webscript.org.alfresco.export.export-start.post"
+          class="org.alfresco.webscripts.export.ExportWebScript"
           parent="webscript">
         <property name="nodeService" ref="nodeService"/>
         <property name="searchService" ref="searchService"/>
@@ -35,14 +30,6 @@
         <property name="repository" ref="repositoryHelper" />
         <property name="retryingTransactionHelper" ref="retryingTransactionHelper" />
         <property name="extractionBasePath" value="${extraction.base.path}" />
-        <property name="exportStatusService" ref="exportStatusService" />
-    </bean>
-
-    <!-- Export Status WebScript (GET - polls status) -->
-    <bean id="webscript.org.alfresco.extract.export-status.get"
-          class="org.alfresco.webscripts.extract.ExportStatusWebScript"
-          parent="webscript">
-        <property name="exportStatusService" ref="exportStatusService" />
     </bean>
 
 </beans>
