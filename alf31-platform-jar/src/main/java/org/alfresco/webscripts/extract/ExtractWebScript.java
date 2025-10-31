@@ -41,6 +41,7 @@ public class ExtractWebScript extends DeclarativeWebScript {
     private ContentService contentService;
     private Repository repository;
     private RetryingTransactionHelper retryingTransactionHelper;
+    private ExportStatusService exportStatusService;
 
     // Extraction parameters
     private String extractionBasePath;  // Configured via Spring from alfresco-global.properties
@@ -48,6 +49,7 @@ public class ExtractWebScript extends DeclarativeWebScript {
     private int maxDocs;
     private String keywords;
     private String mimetype;
+    private String jobId;  // Current job ID for status tracking
 
     // Logging
     private NodeRef logFileRef;
@@ -74,52 +76,87 @@ public class ExtractWebScript extends DeclarativeWebScript {
 
     /**
      * Core implementation of the extraction logic.
+     * Starts export in background and returns job ID for polling.
      */
     private Map<String, Object> doExecuteImpl(WebScriptRequest req) {
-        // Initialize parameters from request/session
+        // Initialize parameters from request
         initializeParameters(req);
-
-        // Initialize log file
-        initLogFile();
-
-        logToFileAndConsole("INFO", "========================================");
-        logToFileAndConsole("INFO", "Starting export process");
-        logToFileAndConsole("INFO", String.format("Parameters: maxDocs=%d, basePath=%s", maxDocs, extractionBasePath));
-        logToFileAndConsole("INFO", String.format("Keywords: '%s'", keywords != null && !keywords.isEmpty() ? keywords : "(none)"));
-        logToFileAndConsole("INFO", String.format("Mimetype: %s", mimetype != null && !mimetype.isEmpty() ? mimetype : "(all)"));
-        logToFileAndConsole("INFO", "========================================");
 
         Map<String, Object> model = new HashMap<>();
 
+        // Get current username
+        String username = AuthenticationUtil.getFullyAuthenticatedUser();
+
+        // Create export job and get job ID
+        this.jobId = exportStatusService.createExportJob(username, maxDocs, keywords, mimetype);
+
+        // Start export in background thread
+        Thread exportThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                AuthenticationUtil.runAs(new AuthenticationUtil.RunAsWork<Void>() {
+                    @Override
+                    public Void doWork() throws Exception {
+                        performExport();
+                        return null;
+                    }
+                }, username);
+            }
+        });
+        exportThread.setName("ExportThread-" + jobId);
+        exportThread.start();
+
+        // Return job ID immediately for polling
+        model.put("success", true);
+        model.put("jobId", jobId);
+        model.put("message", "Export started in background. Job ID: " + jobId);
+
+        return model;
+    }
+
+    /**
+     * Perform the actual export (runs in background thread).
+     */
+    private void performExport() {
         try {
+            // Initialize log file
+            initLogFile();
+
+            logToFileAndConsole("INFO", "========================================");
+            logToFileAndConsole("INFO", "Starting export process - Job ID: " + jobId);
+            logToFileAndConsole("INFO", String.format("Parameters: maxDocs=%d, basePath=%s", maxDocs, extractionBasePath));
+            logToFileAndConsole("INFO", String.format("Keywords: '%s'", keywords != null && !keywords.isEmpty() ? keywords : "(none)"));
+            logToFileAndConsole("INFO", String.format("Mimetype: %s", mimetype != null && !mimetype.isEmpty() ? mimetype : "(all)"));
+            logToFileAndConsole("INFO", "========================================");
+
+            exportStatusService.updateStatus(jobId, "RUNNING", 0, "Validation du chemin d'extraction...");
+
             // Validate extraction path
             validateExtractionPath();
+            exportStatusService.updateExtractionPath(jobId, extractionPath);
+
+            exportStatusService.updateStatus(jobId, "RUNNING", 0, "Recherche des documents en cours...");
 
             // Perform search and extraction
             int extractedCount = performSearchAndExtract();
 
             // Build result
-            String exitMessage = String.format("Export completed successfully. Extracted %d documents.", extractedCount);
+            String exitMessage = String.format("Export terminé avec succès. %d documents extraits.", extractedCount);
             logToFileAndConsole("INFO", exitMessage);
             logToFileAndConsole("INFO", "========================================");
 
-            model.put("success", true);
-            model.put("extractedCount", extractedCount);
-            model.put("message", exitMessage);
+            exportStatusService.updateStatus(jobId, "COMPLETED", extractedCount, exitMessage);
 
         } catch (Exception e) {
-            String errorMsg = "Error during extraction: " + e.getMessage();
+            String errorMsg = "Erreur lors de l'extraction: " + e.getMessage();
             logToFileAndConsole("ERROR", errorMsg);
             logger.error("Extraction failed", e);
 
-            model.put("success", false);
-            model.put("extractedCount", docCount.get());
-            model.put("message", errorMsg);
+            exportStatusService.updateStatus(jobId, "FAILED", docCount.get(), errorMsg);
+
         } finally {
             closeLogFile();
         }
-
-        return model;
     }
 
     /**
@@ -275,6 +312,12 @@ public class ExtractWebScript extends DeclarativeWebScript {
                         if (extractDocument(nodeRef, extractionDir)) {
                             extractedCount++;
                             docCount.incrementAndGet();
+
+                            // Update status every 10 documents
+                            if (extractedCount % 10 == 0) {
+                                String progressMsg = String.format("Extraction en cours... %d/%d documents", extractedCount, maxDocs);
+                                exportStatusService.updateStatus(jobId, "RUNNING", extractedCount, progressMsg);
+                            }
                         }
                     } catch (Exception e) {
                         logToFileAndConsole("ERROR", "Failed to extract document " + nodeRef + ": " + e.getMessage());
@@ -484,5 +527,9 @@ public class ExtractWebScript extends DeclarativeWebScript {
 
     public void setExtractionBasePath(String path) {
         this.extractionBasePath = path;
+    }
+
+    public void setExportStatusService(ExportStatusService exportStatusService) {
+        this.exportStatusService = exportStatusService;
     }
 }
