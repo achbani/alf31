@@ -1,34 +1,34 @@
 function main() {
-    try {
-        // Get parameters
-        var maxDocs = parseInt(args.maxDocs) || 40000;
-        var extractionPath = args.extractionPath || "/mnt/contentstore2/ExtractionTravodoc";
-
-        // Get the extraction web script
-        var extractScript = actions.create("extract-start");
-        extractScript.parameters["maxDocs"] = maxDocs;
-        extractScript.parameters["extractionPath"] = extractionPath;
-
-        // Execute the extraction
-        extractScript.execute();
-
-        // Store success status in session
-        var status = {
-            success: true,
-            message: "Extraction started successfully. Processing " + maxDocs + " documents to path " + extractionPath + "."
-        };
-        session.setValue("extract_status", jsonUtils.toJSONString(status));
-
-    } catch (err) {
-        // Store error status in session
-        var status = {
-            success: false,
-            message: "Error starting extraction: " + err.message
-        };
-        session.setValue("extract_status", jsonUtils.toJSONString(status));
+    // Retrieve status from session if available (from previous extraction)
+    var statusJson = session.getValue("extract_status");
+    if (statusJson) {
+        try {
+            model.extract_status = JSON.parse(statusJson);
+            // Clear the status after displaying it
+            session.removeValue("extract_status");
+        } catch (e) {
+            logger.error("Failed to parse extract_status from session: " + e.message);
+        }
     }
 
-    // Redirect back to the form
-    status.code = 302;
-    status.location = "/alfresco/s/gedaff/extract/form";
+    // Set default values for the form
+    model.defaultMaxDocs = 40000;
+    model.defaultPath = "/mnt/contentstore2/ExtractionTravodoc";
+
+    // Available mimetypes for the dropdown (can be extended)
+    model.availableMimetypes = [
+        { value: "application/pdf", label: "PDF" },
+        { value: "application/msword", label: "Word (.doc)" },
+        { value: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", label: "Word (.docx)" },
+        { value: "application/vnd.ms-excel", label: "Excel (.xls)" },
+        { value: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", label: "Excel (.xlsx)" },
+        { value: "application/vnd.ms-powerpoint", label: "PowerPoint (.ppt)" },
+        { value: "application/vnd.openxmlformats-officedocument.presentationml.presentation", label: "PowerPoint (.pptx)" },
+        { value: "image/jpeg", label: "Images JPEG" },
+        { value: "image/png", label: "Images PNG" },
+        { value: "text/plain", label: "Fichiers texte" },
+        { value: "text/html", label: "Fichiers HTML" }
+    ];
 }
+
+main();

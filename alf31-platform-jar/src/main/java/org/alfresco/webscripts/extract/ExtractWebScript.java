@@ -22,269 +22,370 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.extensions.webscripts.*;
 
+/**
+ * WebScript for extracting documents from Alfresco repository based on keyword search and mimetype filtering.
+ * This implementation replaces the old region-based extraction with a more flexible search-based approach.
+ */
 public class ExtractWebScript extends DeclarativeWebScript {
     private static final Log logger = LogFactory.getLog(ExtractWebScript.class);
     private static final int DEFAULT_BATCH_SIZE = 50;
     private static final String LOG_FILE_PREFIX = "Export_";
     private static final String LOG_FILE_SUFFIX = ".log";
-
-    //public static final String MODEL_NAMESPACE = "http://www.alfresco.org/model/content/1.0";
-    //public static final QName ASPECT_CHECKED = QName.createQName(MODEL_NAMESPACE, "checked");
+    private static final String FTS_ALFRESCO = SearchService.LANGUAGE_FTS_ALFRESCO;
 
     private final AtomicInteger docCount = new AtomicInteger(0);
-    private final Set<String> processedSiteIds = new HashSet<>();
 
+    // Alfresco services
     private NodeService nodeService;
     private SearchService searchService;
     private ContentService contentService;
     private Repository repository;
     private RetryingTransactionHelper retryingTransactionHelper;
 
+    // Extraction parameters
     private String extractionPath;
     private int maxDocs;
-    private NodeRef logFileRef;
-    private ContentWriter contentWriter;
+    private String keywords;
+    private List<String> mimetypes;
 
-    /*
-     *  Main method that handles the web script execution.
-     *  It performs two passes of document extraction based on different date ranges.
-     * */
+    // Logging
+    private NodeRef logFileRef;
+
+    // Map for handling duplicate file names
+    private Map<String, Integer> fileNameCounters = new HashMap<>();
+
+    /**
+     * Main entry point for the web script execution.
+     */
     @Override
     protected Map<String, Object> executeImpl(WebScriptRequest req, Status status, Cache cache) {
-        try{
+        try {
             return doExecuteImpl(req);
         } catch (Exception e) {
             logToFileAndConsole("ERROR", "Error during export process: " + e.getMessage());
-            return Collections.singletonMap("message", "Error during export process: " + e.getMessage());
+            logger.error("Exception during export", e);
+            Map<String, Object> model = new HashMap<>();
+            model.put("success", false);
+            model.put("message", "Error during export process: " + e.getMessage());
+            return model;
         }
     }
 
+    /**
+     * Core implementation of the extraction logic.
+     */
     private Map<String, Object> doExecuteImpl(WebScriptRequest req) {
+        // Initialize parameters from request/session
         initializeParameters(req);
+
+        // Initialize log file
         initLogFile();
-        logToFileAndConsole("INFO", String.format("Starting export process. Max docs: %d, Path: %s", maxDocs, extractionPath));
+
+        logToFileAndConsole("INFO", "========================================");
+        logToFileAndConsole("INFO", "Starting export process");
+        logToFileAndConsole("INFO", String.format("Parameters: maxDocs=%d, path=%s", maxDocs, extractionPath));
+        logToFileAndConsole("INFO", String.format("Keywords: '%s'", keywords != null ? keywords : "(none)"));
+        logToFileAndConsole("INFO", String.format("Mimetypes: %s", mimetypes != null && !mimetypes.isEmpty() ?
+            String.join(", ", mimetypes) : "(all)"));
+        logToFileAndConsole("INFO", "========================================");
 
         Map<String, Object> model = new HashMap<>();
 
-        // Get parameters from the request
-        String maxDocsParam = req.getParameter("maxDocs");
-        String extractionPathParam = req.getParameter("extractionPath");
+        try {
+            // Validate extraction path
+            validateExtractionPath();
 
-        if (maxDocsParam != null) {
-            maxDocs = Integer.parseInt(maxDocsParam);
+            // Perform search and extraction
+            int extractedCount = performSearchAndExtract();
+
+            // Build result
+            String exitMessage = String.format("Export completed successfully. Extracted %d documents.", extractedCount);
+            logToFileAndConsole("INFO", exitMessage);
+            logToFileAndConsole("INFO", "========================================");
+
+            model.put("success", true);
+            model.put("extractedCount", extractedCount);
+            model.put("message", exitMessage);
+
+        } catch (Exception e) {
+            String errorMsg = "Error during extraction: " + e.getMessage();
+            logToFileAndConsole("ERROR", errorMsg);
+            logger.error("Extraction failed", e);
+
+            model.put("success", false);
+            model.put("extractedCount", docCount.get());
+            model.put("message", errorMsg);
+        } finally {
+            closeLogFile();
         }
 
-        if (extractionPathParam != null) {
-            extractionPath = extractionPathParam;
-        }
-
-        // Pass 1: Focuses on ensuring diversity in the extracted documents.
-        // It selects at least 10 sites from each region in the repository.
-        firstPass();
-
-        // Extracts documents from sites created after 2020,
-        // continuing until a maximum number of documents (maxDocs) is reached.
-        secondPass();
-        String exitMessage = String.format("Export completed. Processed %d documents.", docCount.get());
-        logToFileAndConsole("INFO", exitMessage);
-        closeLogFile();
-        model.put("message", exitMessage);
         return model;
     }
 
+    /**
+     * Initialize extraction parameters from request and session.
+     */
     private void initializeParameters(WebScriptRequest req) {
-        Optional.ofNullable(req.getParameter("maxDocs"))
-                .ifPresent(param -> maxDocs = Integer.parseInt(param));
-        Optional.ofNullable(req.getParameter("extractionPath"))
-                .ifPresent(path -> extractionPath = path);
+        // Try to get from request parameters first, then from session
+        String maxDocsParam = req.getParameter("maxDocs");
+        if (maxDocsParam == null) {
+            Object sessionValue = req.getSession().getAttribute("maxDocs");
+            maxDocsParam = sessionValue != null ? sessionValue.toString() : "40000";
+        }
+        this.maxDocs = Integer.parseInt(maxDocsParam);
+
+        String pathParam = req.getParameter("extractionPath");
+        if (pathParam == null) {
+            Object sessionValue = req.getSession().getAttribute("extractionPath");
+            pathParam = sessionValue != null ? sessionValue.toString() : "/mnt/contentstore2/ExtractionTravodoc";
+        }
+        this.extractionPath = pathParam;
+
+        String keywordsParam = req.getParameter("keywords");
+        if (keywordsParam == null) {
+            Object sessionValue = req.getSession().getAttribute("keywords");
+            keywordsParam = sessionValue != null ? sessionValue.toString() : "";
+        }
+        this.keywords = keywordsParam != null ? keywordsParam.trim() : "";
+
+        String mimetypesParam = req.getParameter("mimetypes");
+        if (mimetypesParam == null) {
+            Object sessionValue = req.getSession().getAttribute("mimetypes");
+            mimetypesParam = sessionValue != null ? sessionValue.toString() : "";
+        }
+        this.mimetypes = parseMimetypes(mimetypesParam);
     }
 
-    private void firstPass(){
-        for (int region = 1; region <= 9; region++) {
-            String query = "ASPECT:\"gedaff:siteArchive\" AND NOT ASPECT:\"gedaff:checked\"" +
-                    " AND gedaff:perimetre:" + region +
-                    " AND cm:created:[MIN TO 2020>";
-            SearchParameters sp = new SearchParameters();
-            sp.addStore(StoreRef.STORE_REF_WORKSPACE_SPACESSTORE);
-            sp.setLanguage(SearchService.LANGUAGE_FTS_ALFRESCO);
-            sp.setQuery(query);
-            sp.setLimitBy(LimitBy.FINAL_SIZE);
-            sp.setLimit(10);
-            sp.setQueryConsistency(QueryConsistency.TRANSACTIONAL_IF_POSSIBLE);
-
-            ResultSet results = null;
-            try {
-                results = searchService.query(sp);
-                for(int i=0; i< results.length(); i++) {
-                    NodeRef siteRef = results.getNodeRef(i);
-                    logToFileAndConsole("DEBUG","Site found: " + siteRef);
-                    if (!processedSiteIds.contains(siteRef.getId())) {
-                        AuthenticationUtil.RunAsWork<Void> addAspectWork = () -> {
-                            extractDocuments(siteRef);
-                            RetryingTransactionHelper.RetryingTransactionCallback<Void> addAspectCallback = () -> {
-                               // nodeService.addAspect(siteRef, ASPECT_CHECKED, null);
-                                return null;
-                            };
-                            return retryingTransactionHelper.doInTransaction(addAspectCallback);
-                        };
-                        AuthenticationUtil.runAs(addAspectWork, AuthenticationUtil.getSystemUserName());
-                        processedSiteIds.add(siteRef.getId());
-                    } else {
-                        logToFileAndConsole("DEBUG", "Site already processed (flagged): " + siteRef);
-                    }
-                }
-            } finally {
-                if (results != null) {
-                    results.close();
+    /**
+     * Parse comma-separated mimetype string into a list.
+     */
+    private List<String> parseMimetypes(String mimetypesStr) {
+        List<String> result = new ArrayList<>();
+        if (mimetypesStr != null && !mimetypesStr.trim().isEmpty()) {
+            String[] parts = mimetypesStr.split(",");
+            for (String part : parts) {
+                String trimmed = part.trim();
+                if (!trimmed.isEmpty()) {
+                    result.add(trimmed);
                 }
             }
         }
+        return result;
     }
 
-    private void secondPass(){
-        int skipCount = 0;
-        while (docCount.get() < maxDocs) {
-            String query = "ASPECT:\"gedaff:siteArchive\" AND NOT ASPECT:\"gedaff:checked\"" +
-                    " AND cm:created:[2020 TO MAX]";
+    /**
+     * Validate extraction path for security and existence.
+     */
+    private void validateExtractionPath() throws IOException {
+        if (extractionPath == null || extractionPath.trim().isEmpty()) {
+            throw new IllegalArgumentException("Extraction path cannot be empty");
+        }
 
-            SearchParameters sp = new SearchParameters();
-            sp.addStore(StoreRef.STORE_REF_WORKSPACE_SPACESSTORE);
-            sp.setLanguage(SearchService.LANGUAGE_FTS_ALFRESCO);
-            sp.setQuery(query);
-            sp.setSkipCount(skipCount);
-            sp.setMaxItems(DEFAULT_BATCH_SIZE);
-            sp.setLimitBy(LimitBy.FINAL_SIZE);
-            sp.setQueryConsistency(QueryConsistency.TRANSACTIONAL_IF_POSSIBLE);
+        // Security check: prevent directory traversal
+        if (extractionPath.contains("..") || extractionPath.contains("~")) {
+            throw new SecurityException("Invalid extraction path - forbidden characters detected");
+        }
+
+        // Create directory if it doesn't exist
+        Path path = Paths.get(extractionPath);
+        if (!Files.exists(path)) {
+            Files.createDirectories(path);
+            logToFileAndConsole("INFO", "Created extraction directory: " + extractionPath);
+        }
+    }
+
+    /**
+     * Build FTS-Alfresco search query based on keywords and mimetypes.
+     */
+    private String buildSearchQuery() {
+        StringBuilder query = new StringBuilder();
+
+        // Base: search only for content nodes (not folders)
+        query.append("TYPE:\"cm:content\"");
+
+        // Add keyword search if present
+        if (keywords != null && !keywords.trim().isEmpty()) {
+            String cleanKeywords = keywords.replace("\"", "\\\"");
+
+            query.append(" AND (");
+
+            // Search in multiple fields
+            query.append("cm:name:\"").append(cleanKeywords).append("*\"");
+            query.append(" OR cm:title:\"").append(cleanKeywords).append("*\"");
+            query.append(" OR cm:description:\"").append(cleanKeywords).append("*\"");
+            query.append(" OR TEXT:\"").append(cleanKeywords).append("\"");
+
+            query.append(")");
+        }
+
+        // Add mimetype filter if present
+        if (mimetypes != null && !mimetypes.isEmpty()) {
+            query.append(" AND (");
+            for (int i = 0; i < mimetypes.size(); i++) {
+                if (i > 0) {
+                    query.append(" OR ");
+                }
+                // Note: escape the colon in the property name
+                query.append("@cm\\:content.mimetype:\"").append(mimetypes.get(i)).append("\"");
+            }
+            query.append(")");
+        }
+
+        return query.toString();
+    }
+
+    /**
+     * Perform search and extract documents in batches.
+     */
+    private int performSearchAndExtract() {
+        int extractedCount = 0;
+        int skipCount = 0;
+
+        // Build search query
+        String query = buildSearchQuery();
+        logToFileAndConsole("INFO", "Search query: " + query);
+
+        // Create extraction directory
+        File extractionDir = new File(extractionPath);
+
+        // Search and extract in batches
+        while (extractedCount < maxDocs) {
+            // Setup search parameters
+            SearchParameters searchParams = new SearchParameters();
+            searchParams.setLanguage(FTS_ALFRESCO);
+            searchParams.setQuery(query);
+            searchParams.setSkipCount(skipCount);
+            searchParams.setMaxItems(DEFAULT_BATCH_SIZE);
+            searchParams.addStore(StoreRef.STORE_REF_WORKSPACE_SPACESSTORE);
+            searchParams.setQueryConsistency(QueryConsistency.TRANSACTIONAL_IF_POSSIBLE);
 
             ResultSet results = null;
-            boolean processedAnySites = false;
-
             try {
-                results = searchService.query(sp);
+                // Execute search
+                results = searchService.query(searchParams);
 
-                // If no results found, exit the loop
+                logToFileAndConsole("DEBUG", String.format("Batch %d: found %d results (skip=%d)",
+                    (skipCount / DEFAULT_BATCH_SIZE + 1), results.length(), skipCount));
+
+                // No more results
                 if (results.length() == 0) {
-                    logToFileAndConsole("INFO", "No more results found. Ending extraction.");
+                    logToFileAndConsole("INFO", "No more documents found");
                     break;
                 }
 
-                for (ResultSetRow row : results) {
-                    NodeRef siteRef = row.getNodeRef();
-                    if (!processedSiteIds.contains(siteRef.getId())) {
-                        AuthenticationUtil.RunAsWork<NodeRef> processSite = () -> {
-                            RetryingTransactionHelper.RetryingTransactionCallback<NodeRef> extractSiteWork = () -> {
-                                extractDocuments(siteRef);
-                                //if (!nodeService.hasAspect(siteRef, ASPECT_CHECKED)) {
-                                //    nodeService.addAspect(siteRef, ASPECT_CHECKED, null);
-                                //}
-                                return null;
-                            };
-                            return retryingTransactionHelper.doInTransaction(extractSiteWork, false, true);
-                        };
-                        AuthenticationUtil.runAs(processSite, AuthenticationUtil.getSystemUserName());
-                        processedSiteIds.add(siteRef.getId());
-                        processedAnySites = true;
+                // Extract each document
+                for (NodeRef nodeRef : results.getNodeRefs()) {
+                    if (extractedCount >= maxDocs) {
+                        logToFileAndConsole("INFO", "Reached maximum document limit: " + maxDocs);
+                        break;
+                    }
+
+                    try {
+                        if (extractDocument(nodeRef, extractionDir)) {
+                            extractedCount++;
+                            docCount.incrementAndGet();
+                        }
+                    } catch (Exception e) {
+                        logToFileAndConsole("ERROR", "Failed to extract document " + nodeRef + ": " + e.getMessage());
                     }
                 }
 
-                // Increment skipCount regardless of whether we processed any sites
                 skipCount += DEFAULT_BATCH_SIZE;
 
-                // Log progress
-                logToFileAndConsole("DEBUG", "Processed batch with skipCount=" + skipCount +
-                        ", processed sites in this batch=" + (processedAnySites ? "yes" : "no") +
-                        ", total documents extracted=" + docCount);
-
+            } catch (Exception e) {
+                logToFileAndConsole("ERROR", "Search failed at skip=" + skipCount + ": " + e.getMessage());
+                break;
             } finally {
                 if (results != null) {
                     results.close();
                 }
             }
         }
+
+        return extractedCount;
     }
 
-    /* Extracts all documents from a site and saves them to a folder. */
-    private void extractDocuments(NodeRef siteRef) {
-        String siteName = (String) nodeService.getProperty(siteRef, ContentModel.PROP_NAME);
-        Path siteFolderPath = Paths.get(extractionPath, siteName);
-
-        logToFileAndConsole("INFO", "Starting extraction for site: " + siteName);
-
-        try {
-            if (!Files.exists(siteFolderPath)) {
-                Files.createDirectories(siteFolderPath);
-                logToFileAndConsole("DEBUG", "Created directory: " + siteFolderPath);
-            } else {
-                processedSiteIds.add(siteRef.getId());
-            }
-
-            NodeRef documentLibrary = nodeService.getChildByName(siteRef, ContentModel.ASSOC_CONTAINS, "documentLibrary");
-            if (documentLibrary != null) {
-                logToFileAndConsole("TRACE", "Processing document library for site: " + siteName);
-                processFolder(documentLibrary, siteFolderPath);
-            } else {
-                logToFileAndConsole("TRACE", "Document library not found for site: " + siteName);
-            }
-        } catch (IOException e) {
-            logToFileAndConsole("ERROR", "Error while creating directories or processing folder for site: " + siteName + ": " + e.getMessage());
+    /**
+     * Extract a single document to the extraction directory.
+     */
+    private boolean extractDocument(NodeRef nodeRef, File extractionDir) {
+        // Verify node exists
+        if (!nodeService.exists(nodeRef)) {
+            return false;
         }
 
-        logToFileAndConsole("INFO", "End of extraction for site: " + siteName + " with " + docCount + " documents extracted");
-    }
-
-    /* Recursively processes a folder and its children. */
-    private void processFolder(NodeRef folderRef, Path siteFolderPath) throws IOException {
-        List<ChildAssociationRef> children = nodeService.getChildAssocs(folderRef);
-        logToFileAndConsole("DEBUG", "Processing folder: " + folderRef + " with " + children.size() + " children");
-
-        for (ChildAssociationRef child : children) {
-            NodeRef childRef = child.getChildRef();
-            if (nodeService.getType(childRef).equals(ContentModel.TYPE_CONTENT)) {
-                logToFileAndConsole("DEBUG", "Extracting document: " + childRef);
-                extractDocument(childRef, siteFolderPath);
-            } else if (nodeService.getType(childRef).equals(ContentModel.TYPE_FOLDER)) {
-                logToFileAndConsole("TRACE", "Processing subfolder: " + childRef);
-                processFolder(childRef, siteFolderPath);
-            }
+        // Get document name
+        String fileName = (String) nodeService.getProperty(nodeRef, ContentModel.PROP_NAME);
+        if (fileName == null) {
+            fileName = nodeRef.getId() + ".bin";
         }
-    }
 
-    /* Extracts a single document and saves it to the specified path. */
-    private void extractDocument(NodeRef documentRef, Path siteFolderPath) {
-        String documentName = (String) nodeService.getProperty(documentRef, ContentModel.PROP_NAME);
-        Path documentPath = siteFolderPath.resolve(documentName);
+        // Handle duplicate file names
+        String uniqueFileName = getUniqueFileName(fileName);
+
+        // Get content reader
+        ContentReader reader = contentService.getReader(nodeRef, ContentModel.PROP_CONTENT);
+        if (reader == null || !reader.exists()) {
+            logToFileAndConsole("WARN", "No content for: " + fileName);
+            return false;
+        }
+
+        // Write to file system
+        File targetFile = new File(extractionDir, uniqueFileName);
         InputStream inputStream = null;
 
-        logToFileAndConsole("INFO", "Starting extraction for document: " + documentName);
-
         try {
-            ContentReader reader = contentService.getReader(documentRef, ContentModel.PROP_CONTENT);
             inputStream = reader.getContentInputStream();
+            Files.copy(inputStream, targetFile.toPath());
 
-            // If a document with the same name already exists in the extraction path,
-            // it renames the new document to avoid overwriting.
-            int counter = 1;
-            while (Files.exists(documentPath)) {
-                String newDocumentName = documentName.replaceFirst("(\\.[^.]*)?$", "_" + counter + "$1");
-                documentPath = siteFolderPath.resolve(newDocumentName);
-                counter++;
-            }
+            long fileSize = targetFile.length();
+            logToFileAndConsole("INFO", String.format("Extracted [%d]: %s (%s)",
+                docCount.get() + 1, uniqueFileName, formatFileSize(fileSize)));
 
-            Files.copy(inputStream, documentPath);
-            docCount.incrementAndGet();
-            logToFileAndConsole("INFO", "Extracted: " + documentPath);
+            return true;
+
         } catch (Exception e) {
-            logToFileAndConsole("ERROR", "Failed to extract " + documentName + ": " + e.getMessage());
+            logToFileAndConsole("ERROR", "Failed to write file " + uniqueFileName + ": " + e.getMessage());
+            return false;
         } finally {
             IOUtils.closeQuietly(inputStream);
         }
     }
 
+    /**
+     * Generate a unique file name to avoid overwriting existing files.
+     */
+    private String getUniqueFileName(String fileName) {
+        Integer counter = fileNameCounters.get(fileName);
+
+        if (counter == null) {
+            fileNameCounters.put(fileName, 1);
+            return fileName;
+        } else {
+            fileNameCounters.put(fileName, counter + 1);
+            // Insert counter before file extension
+            String newFileName = fileName.replaceFirst("(\\.[^.]*)?$", "_" + counter + "$1");
+            return newFileName;
+        }
+    }
+
+    /**
+     * Format file size in human-readable format.
+     */
+    private String formatFileSize(long size) {
+        if (size < 1024) return size + " B";
+        if (size < 1024 * 1024) return String.format("%.2f KB", size / 1024.0);
+        if (size < 1024 * 1024 * 1024) return String.format("%.2f MB", size / (1024.0 * 1024));
+        return String.format("%.2f GB", size / (1024.0 * 1024 * 1024));
+    }
+
+    /**
+     * Initialize log file in user's home directory.
+     */
     private void initLogFile() {
         try {
             NodeRef person = repository.getFullyAuthenticatedPerson();
-            if (person != null)
-            {
+            if (person != null) {
                 NodeRef userHome = repository.getUserHome(person);
                 if (userHome != null) {
                     String logFileName = LOG_FILE_PREFIX + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()) + LOG_FILE_SUFFIX;
@@ -313,9 +414,13 @@ public class ExtractWebScript extends DeclarativeWebScript {
         }
     }
 
+    /**
+     * Write log message to both file and console.
+     */
     private void logToFileAndConsole(String level, String message) {
         String formattedMessage = new Date() + " - " + level + " - " + message + "\n";
 
+        // Write to log file in repository
         if (logFileRef != null) {
             try {
                 String currentContent = "";
@@ -333,9 +438,13 @@ public class ExtractWebScript extends DeclarativeWebScript {
             }
         }
 
+        // Write to console
         logToConsole(level, message);
     }
 
+    /**
+     * Write log message to console only.
+     */
     private void logToConsole(String level, String message) {
         switch (level) {
             case "TRACE": logger.trace(message); break;
@@ -347,11 +456,11 @@ public class ExtractWebScript extends DeclarativeWebScript {
         }
     }
 
+    /**
+     * Close log file resources.
+     */
     private void closeLogFile() {
         try {
-            if (contentWriter != null) {
-                contentWriter = null;
-            }
             if (logFileRef != null) {
                 logFileRef = null;
             }
@@ -361,12 +470,32 @@ public class ExtractWebScript extends DeclarativeWebScript {
         }
     }
 
-    // Spring setters
-    public void setNodeService(NodeService nodeService) { this.nodeService = nodeService; }
-    public void setSearchService(SearchService searchService) { this.searchService = searchService; }
-    public void setContentService(ContentService contentService) { this.contentService = contentService; }
-    public void setRepository(Repository repository) { this.repository = repository; }
-    public void setRetryingTransactionHelper(RetryingTransactionHelper helper) { this.retryingTransactionHelper = helper; }
-    public void setExtractionPath(String path) { this.extractionPath = path; }
-    public void setMaxDocs(int maxDocs) { this.maxDocs = maxDocs; }
+    // Spring setters for dependency injection
+    public void setNodeService(NodeService nodeService) {
+        this.nodeService = nodeService;
+    }
+
+    public void setSearchService(SearchService searchService) {
+        this.searchService = searchService;
+    }
+
+    public void setContentService(ContentService contentService) {
+        this.contentService = contentService;
+    }
+
+    public void setRepository(Repository repository) {
+        this.repository = repository;
+    }
+
+    public void setRetryingTransactionHelper(RetryingTransactionHelper helper) {
+        this.retryingTransactionHelper = helper;
+    }
+
+    public void setExtractionPath(String path) {
+        this.extractionPath = path;
+    }
+
+    public void setMaxDocs(int maxDocs) {
+        this.maxDocs = maxDocs;
+    }
 }
