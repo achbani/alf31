@@ -133,13 +133,6 @@
 
             <button type="submit">Lancer l'export</button>
         </form>
-
-        <#if extract_status??>
-            <div class="message ${extract_status.success?string('success', 'error')}">
-                <strong>${extract_status.success?string('Succès', 'Erreur')}</strong>
-                <p>${extract_status.message}</p>
-            </div>
-        </#if>
     </div>
 </body>
 </html>

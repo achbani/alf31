@@ -123,37 +123,33 @@ public class ExtractWebScript extends DeclarativeWebScript {
     }
 
     /**
-     * Initialize extraction parameters from request and session.
+     * Initialize extraction parameters from request.
      */
     private void initializeParameters(WebScriptRequest req) {
-        // Try to get from request parameters first, then from session
+        // Get parameters from request
         String maxDocsParam = req.getParameter("maxDocs");
-        if (maxDocsParam == null) {
-            Object sessionValue = req.getSession().getAttribute("maxDocs");
-            maxDocsParam = sessionValue != null ? sessionValue.toString() : "40000";
-        }
-        this.maxDocs = Integer.parseInt(maxDocsParam);
+        this.maxDocs = (maxDocsParam != null && !maxDocsParam.isEmpty()) ?
+            Integer.parseInt(maxDocsParam) : 40000;
 
         String pathParam = req.getParameter("extractionPath");
-        if (pathParam == null) {
-            Object sessionValue = req.getSession().getAttribute("extractionPath");
-            pathParam = sessionValue != null ? sessionValue.toString() : "/mnt/contentstore2/ExtractionTravodoc";
-        }
-        this.extractionPath = pathParam;
+        this.extractionPath = (pathParam != null && !pathParam.isEmpty()) ?
+            pathParam : "/mnt/contentstore2/ExtractionTravodoc";
 
         String keywordsParam = req.getParameter("keywords");
-        if (keywordsParam == null) {
-            Object sessionValue = req.getSession().getAttribute("keywords");
-            keywordsParam = sessionValue != null ? sessionValue.toString() : "";
-        }
-        this.keywords = keywordsParam != null ? keywordsParam.trim() : "";
+        this.keywords = (keywordsParam != null) ? keywordsParam.trim() : "";
 
-        String mimetypesParam = req.getParameter("mimetypes");
-        if (mimetypesParam == null) {
-            Object sessionValue = req.getSession().getAttribute("mimetypes");
-            mimetypesParam = sessionValue != null ? sessionValue.toString() : "";
+        // Handle multiple mimetypes from form (can be sent as multiple parameters with same name)
+        String[] mimetypeParams = req.getParameterValues("mimetypes");
+        if (mimetypeParams != null && mimetypeParams.length > 0) {
+            this.mimetypes = new ArrayList<>();
+            for (String mimetype : mimetypeParams) {
+                if (mimetype != null && !mimetype.trim().isEmpty()) {
+                    this.mimetypes.add(mimetype.trim());
+                }
+            }
+        } else {
+            this.mimetypes = new ArrayList<>();
         }
-        this.mimetypes = parseMimetypes(mimetypesParam);
     }
 
     /**
