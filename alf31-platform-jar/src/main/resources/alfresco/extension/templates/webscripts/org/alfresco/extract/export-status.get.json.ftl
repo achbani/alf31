@@ -1,13 +1,13 @@
 {
-  "jobId": "${jobId!""}",
-  "status": "${status!""}",
-  "maxDocs": ${maxDocs!0},
-  "extractedCount": ${extractedCount!0},
-  "progress": ${progress!0},
-  "message": "${message!""}",
-  "keywords": "${keywords!""}",
-  "mimetype": "${mimetype!""}",
-  "extractionPath": "${extractionPath!""}",
+  "jobId": "${(jobId!"")?json_string}",
+  "status": "${(status!"")?json_string}",
+  "maxDocs": ${maxDocs!0?c},
+  "extractedCount": ${extractedCount!0?c},
+  "progress": ${progress!0?c},
+  "message": "${(message!"")?json_string}",
+  "keywords": "${(keywords!"")?json_string}",
+  "mimetype": "${(mimetype!"")?json_string}",
+  "extractionPath": "${(extractionPath!"")?json_string}",
   <#if startTime??>
   "startTime": "${startTime?datetime?iso_utc}",
   <#else>
@@ -18,8 +18,6 @@
   <#else>
   "endTime": null,
   </#if>
-  "duration": ${duration!0}
-  <#if error??>
-  ,"error": "${error}"
-  </#if>
+  "duration": ${duration!0?c}<#if error??>,
+  "error": "${error?json_string}"</#if>
 }
