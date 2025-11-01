@@ -257,7 +257,8 @@ public class ExportWebScript extends DeclarativeWebScript {
         if (mimetype != null && !mimetype.trim().isEmpty()) {
             // Use full namespace URI for reliable mimetype filtering
             // Format: @{namespace}property:value
-            query.append(" AND @\\{http\\://www.alfresco.org/model/content/1.0\\}content.mimetype:\"")
+            // Note: No escaping needed - FTS-Alfresco accepts {} and : in namespace URIs
+            query.append(" AND @{http://www.alfresco.org/model/content/1.0}content.mimetype:\"")
                  .append(mimetype)
                  .append("\"");
         }
