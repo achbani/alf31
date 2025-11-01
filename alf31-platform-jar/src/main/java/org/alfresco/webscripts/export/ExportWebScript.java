@@ -255,7 +255,11 @@ public class ExportWebScript extends DeclarativeWebScript {
 
         // Add mimetype filter if present
         if (mimetype != null && !mimetype.trim().isEmpty()) {
-            query.append(" AND @cm\\:content.mimetype:\"").append(mimetype).append("\"");
+            // Use full namespace URI for reliable mimetype filtering
+            // Format: @{namespace}property:value
+            query.append(" AND @\\{http\\://www.alfresco.org/model/content/1.0\\}content.mimetype:\"")
+                 .append(mimetype)
+                 .append("\"");
         }
 
         return query.toString();
@@ -270,7 +274,10 @@ public class ExportWebScript extends DeclarativeWebScript {
 
         // Build search query
         String query = buildSearchQuery();
+        logToFileAndConsole("INFO", "========================================");
         logToFileAndConsole("INFO", "Search query: " + query);
+        logToFileAndConsole("INFO", "Mimetype filter: " + (mimetype != null && !mimetype.isEmpty() ? mimetype : "(none)"));
+        logToFileAndConsole("INFO", "========================================");
 
         // Create extraction directory
         File extractionDir = new File(extractionPath);
@@ -357,6 +364,9 @@ public class ExportWebScript extends DeclarativeWebScript {
             return false;
         }
 
+        // Get actual mimetype for debugging
+        String actualMimetype = reader.getMimetype();
+
         // Write to file system
         File targetFile = new File(extractionDir, uniqueFileName);
         InputStream inputStream = null;
@@ -366,8 +376,9 @@ public class ExportWebScript extends DeclarativeWebScript {
             Files.copy(inputStream, targetFile.toPath());
 
             long fileSize = targetFile.length();
-            logToFileAndConsole("INFO", String.format("Extracted [%d]: %s (%s)",
-                docCount.get() + 1, uniqueFileName, formatFileSize(fileSize)));
+            logToFileAndConsole("INFO", String.format("Extracted [%d]: %s (%s) - mimetype: %s",
+                docCount.get() + 1, uniqueFileName, formatFileSize(fileSize),
+                actualMimetype != null ? actualMimetype : "unknown"));
 
             return true;
 
