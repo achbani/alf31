@@ -230,7 +230,8 @@ public class ExportWebScript extends DeclarativeWebScript {
     }
 
     /**
-     * Build FTS-Alfresco search query based on keywords and mimetype.
+     * Build FTS-Alfresco search query based on keywords.
+     * Note: Mimetype filtering is done in Java code for better reliability.
      */
     private String buildSearchQuery() {
         StringBuilder query = new StringBuilder();
@@ -253,15 +254,8 @@ public class ExportWebScript extends DeclarativeWebScript {
             query.append(")");
         }
 
-        // Add mimetype filter if present
-        if (mimetype != null && !mimetype.trim().isEmpty()) {
-            // Use full namespace URI for reliable mimetype filtering
-            // Format: @{namespace}property:value
-            // Note: No escaping needed - FTS-Alfresco accepts {} and : in namespace URIs
-            query.append(" AND @{http://www.alfresco.org/model/content/1.0}content.mimetype:\"")
-                 .append(mimetype)
-                 .append("\"");
-        }
+        // Note: Mimetype filtering is applied in Java code when extracting documents
+        // This is more reliable than FTS-Alfresco mimetype queries
 
         return query.toString();
     }
@@ -277,7 +271,11 @@ public class ExportWebScript extends DeclarativeWebScript {
         String query = buildSearchQuery();
         logToFileAndConsole("INFO", "========================================");
         logToFileAndConsole("INFO", "Search query: " + query);
-        logToFileAndConsole("INFO", "Mimetype filter: " + (mimetype != null && !mimetype.isEmpty() ? mimetype : "(none)"));
+        if (mimetype != null && !mimetype.isEmpty()) {
+            logToFileAndConsole("INFO", "Mimetype filter (applied in Java): " + mimetype);
+        } else {
+            logToFileAndConsole("INFO", "Mimetype filter: (none - all types)");
+        }
         logToFileAndConsole("INFO", "========================================");
 
         // Create extraction directory
@@ -365,8 +363,17 @@ public class ExportWebScript extends DeclarativeWebScript {
             return false;
         }
 
-        // Get actual mimetype for debugging
+        // Get actual mimetype for debugging and filtering
         String actualMimetype = reader.getMimetype();
+
+        // Apply mimetype filter if specified
+        if (mimetype != null && !mimetype.trim().isEmpty()) {
+            if (actualMimetype == null || !actualMimetype.equals(mimetype)) {
+                logToFileAndConsole("DEBUG", String.format("Skipping %s - mimetype '%s' doesn't match filter '%s'",
+                    fileName, actualMimetype, mimetype));
+                return false;
+            }
+        }
 
         // Write to file system
         File targetFile = new File(extractionDir, uniqueFileName);
