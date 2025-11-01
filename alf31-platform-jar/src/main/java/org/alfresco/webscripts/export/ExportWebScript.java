@@ -230,8 +230,8 @@ public class ExportWebScript extends DeclarativeWebScript {
     }
 
     /**
-     * Build FTS-Alfresco search query based on keywords.
-     * Note: Mimetype filtering is done in Java code for better reliability.
+     * Build FTS-Alfresco search query based on keywords and mimetype.
+     * Uses hybrid approach: FTS query for performance + Java filter for reliability.
      */
     private String buildSearchQuery() {
         StringBuilder query = new StringBuilder();
@@ -254,8 +254,12 @@ public class ExportWebScript extends DeclarativeWebScript {
             query.append(")");
         }
 
-        // Note: Mimetype filtering is applied in Java code when extracting documents
-        // This is more reliable than FTS-Alfresco mimetype queries
+        // Add mimetype filter to FTS query for performance (reduces result set)
+        // Java-side filtering provides additional safety net
+        if (mimetype != null && !mimetype.trim().isEmpty()) {
+            // Use simple property syntax - most compatible with Alfresco 5.2 Solr
+            query.append(" AND @cm\\:content.mimetype:\"").append(mimetype).append("\"");
+        }
 
         return query.toString();
     }
@@ -272,7 +276,7 @@ public class ExportWebScript extends DeclarativeWebScript {
         logToFileAndConsole("INFO", "========================================");
         logToFileAndConsole("INFO", "Search query: " + query);
         if (mimetype != null && !mimetype.isEmpty()) {
-            logToFileAndConsole("INFO", "Mimetype filter (applied in Java): " + mimetype);
+            logToFileAndConsole("INFO", "Mimetype filter: " + mimetype + " (hybrid: FTS query + Java validation)");
         } else {
             logToFileAndConsole("INFO", "Mimetype filter: (none - all types)");
         }
@@ -366,10 +370,11 @@ public class ExportWebScript extends DeclarativeWebScript {
         // Get actual mimetype for debugging and filtering
         String actualMimetype = reader.getMimetype();
 
-        // Apply mimetype filter if specified
+        // Apply Java-side mimetype filter as safety net (in case FTS query missed some)
         if (mimetype != null && !mimetype.trim().isEmpty()) {
             if (actualMimetype == null || !actualMimetype.equals(mimetype)) {
-                logToFileAndConsole("DEBUG", String.format("Skipping %s - mimetype '%s' doesn't match filter '%s'",
+                // This should rarely happen if FTS query works correctly
+                logToFileAndConsole("WARN", String.format("Java filter caught mismatch: %s has mimetype '%s', expected '%s'",
                     fileName, actualMimetype, mimetype));
                 return false;
             }
