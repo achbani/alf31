@@ -11,6 +11,7 @@
     <bean id="alf31-platform-jar.dictionaryBootstrap" parent="dictionaryModelBootstrap" depends-on="dictionaryBootstrap">
         <property name="models">
             <list>
+                <value>alfresco/module/${project.artifactId}/model/ficheModel.xml</value>
             </list>
         </property>
     </bean>

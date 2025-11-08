@@ -1,0 +1,439 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Definition of new Model -->
+<model name="grdfFiche:gedRef" xmlns="http://www.alfresco.org/model/dictionary/1.0">
+	<!-- Optional meta-data about the model -->
+	<description>Model for GrDF</description>
+	<author>sopra</author>
+	<version>1.0</version>
+
+	<!-- Imports are required to allow references to definitions in other models -->
+	<imports>
+		<!-- Import Alfresco Dictionary Definitions -->
+		<import uri="http://www.alfresco.org/model/dictionary/1.0"
+			prefix="d" />
+		<!-- Import Alfresco Content Domain Model Definitions -->
+		<import uri="http://www.alfresco.org/model/content/1.0" prefix="cm" />
+	</imports>
+	<!-- Introduction of new namespaces defined by this model -->
+	<namespaces>
+		<namespace uri="http://www.alfresco.org/model/grdf/fiche/1.0"
+			prefix="grdfFiche" />
+	</namespaces>
+
+
+	<!-- *********************************************************** -->
+	<!-- ******** Contraintes ******* -->
+	<!-- *********************************************************** -->
+
+	<constraints>
+		<constraint name="grdfFiche:state_status" type="LIST">
+			<parameter name="allowedValues">
+				<list>
+					<value>Provisoire</value>
+					<value>En cours de validation</value>
+					<value>Valide</value>
+					<value>Valide, en cours de modification</value>
+					<value>Valide : doit être revu ou archivé</value>
+					<value>Archivé</value>
+				</list>
+			</parameter>
+		</constraint>
+		<constraint name="grdfFiche:confidentLevel" type="LIST">
+			<parameter name="allowedValues">
+				<list>
+					<value>C4 Strictement confidentiel</value>
+					<value>C3 Diffusion restreinte</value>
+					<value>C2 Usage interne</value>
+					<value>C1 Diffusion libre</value>
+				</list>
+			</parameter>
+		</constraint>
+	</constraints>
+
+
+	<!-- *********************************************************** -->
+	<!-- ******** TYPES ******* -->
+	<!-- *********************************************************** -->
+
+
+
+	<!-- *********************************************************** -->
+	<!-- ******** Aspects ******* -->
+	<!-- *********************************************************** -->
+
+	<!-- Fiche documentaire de type lien -->
+	<aspects>
+		<aspect name="grdfFiche:ficheMeta">
+			<title>Proprietes custom des fiches</title>
+			<properties>
+				<property name="grdfFiche:docName">
+					<title>Nom du document</title>
+					<type>d:text</type>
+					<index enabled="true">
+						<atomic>true</atomic>
+						<stored>false</stored>
+						<tokenised>false</tokenised>
+					</index>
+				</property>
+				<property name="grdfFiche:commentaire">
+					<title>Commentaires</title>
+					<type>d:text</type>
+					<index enabled="false">
+					</index>
+				</property>
+				<property name="grdfFiche:contributeur">
+					<title>Contributeur(s)</title>
+					<type>d:text</type>
+					<index enabled="false">
+					</index>
+				</property>
+				<property name="grdfFiche:annuleRemplace">
+					<title>Annule et remplace</title>
+					<type>d:text</type>
+					<index enabled="true">
+						<atomic>true</atomic>
+						<stored>true</stored>
+						<tokenised>both</tokenised>
+					</index>
+				</property>
+				<property name="grdfFiche:docState">
+					<title>Etat du document</title>
+					<type>d:text</type>
+					<index enabled="true">
+						<atomic>true</atomic>
+						<stored>true</stored>
+						<tokenised>false</tokenised>
+					</index>
+					<constraints>
+						<constraint ref="grdfFiche:state_status" />
+					</constraints>
+				</property>
+				<property name="grdfFiche:dureeConservation">
+					<title>Durée de conservation du document (en année)</title>
+					<type>d:int</type>
+				</property>
+			</properties>
+
+			<associations>
+				<association name="grdfFiche:documentAssocie">
+					<title>Documents liés à la référence</title>
+					<source>
+						<mandatory>false</mandatory>
+						<many>true</many>
+					</source>
+					<target>
+						<class>cm:content</class>
+						<mandatory>false</mandatory>
+						<many>true</many>
+					</target>
+				</association>
+				<association name="grdfFiche:documentAnnexe">
+					<title>Documents annexes à la référence</title>
+					<source>
+						<mandatory>false</mandatory>
+						<many>true</many>
+					</source>
+					<target>
+						<class>cm:content</class>
+						<mandatory>false</mandatory>
+						<many>true</many>
+					</target>
+				</association>
+			</associations>
+
+			<mandatory-aspects>
+				<aspect>grdfFiche:motClef</aspect>
+				<aspect>grdfFiche:typeDocument</aspect>
+				<aspect>grdfFiche:origine</aspect>
+				<aspect>grdfFiche:region</aspect>
+				<aspect>grdfFiche:ficheReference</aspect>
+				<aspect>grdfFiche:processus</aspect>
+				<aspect>grdfFiche:savoirFaire</aspect>
+				<aspect>grdfFiche:ficheMigration</aspect>
+			</mandatory-aspects>
+
+		</aspect>
+
+		<!-- To associate the document to the good place in the tree -->
+		<aspect name="grdfFiche:domaineMetier">
+			<title>Categorie metier du document</title>
+			<parent>cm:classifiable</parent>
+			<properties>
+				<property name="grdfFiche:domaineMetier">
+					<title>Domaine métier</title>
+					<type>d:category</type>
+					<mandatory>false</mandatory>
+					<multiple>false</multiple>
+					<index enabled="true">
+						<atomic>true</atomic>
+						<stored>true</stored>
+						<tokenised>false</tokenised>
+					</index>
+				</property>
+			</properties>
+			<mandatory-aspects>
+				<aspect>grdfFiche:sousDomaineMetier</aspect>
+			</mandatory-aspects>
+		</aspect>
+
+		<!-- To associate the document to the good place in the tree -->
+		<aspect name="grdfFiche:sousDomaineMetier">
+			<title>Sous domaine métier</title>
+			<parent>cm:classifiable</parent>
+			<properties>
+				<property name="grdfFiche:sousDomaineMetier">
+					<title>Sous domaine métier</title>
+					<type>d:category</type>
+					<mandatory>false</mandatory>
+					<multiple>false</multiple>
+					<index enabled="true">
+						<atomic>true</atomic>
+						<stored>true</stored>
+						<tokenised>false</tokenised>
+					</index>
+				</property>
+			</properties>
+			<mandatory-aspects>
+				<aspect>grdfFiche:domaineMetier</aspect>
+			</mandatory-aspects>
+		</aspect>
+
+		<aspect name="grdfFiche:origine">
+			<title>Categorie metier du document</title>
+			<parent>cm:classifiable</parent>
+			<properties>
+				<property name="grdfFiche:origine">
+					<title>Origine</title>
+					<type>d:category</type>
+					<mandatory>false</mandatory>
+					<multiple>false</multiple>
+					<index enabled="true">
+						<atomic>true</atomic>
+						<stored>true</stored>
+						<tokenised>false</tokenised>
+					</index>
+				</property>
+			</properties>
+		</aspect>
+
+		<aspect name="grdfFiche:region">
+			<title>Region du document</title>
+			<parent>cm:classifiable</parent>
+			<properties>
+				<property name="grdfFiche:region">
+					<title>Région</title>
+					<type>d:category</type>
+					<mandatory>false</mandatory>
+					<multiple>false</multiple>
+					<index enabled="true">
+						<atomic>true</atomic>
+						<stored>true</stored>
+						<tokenised>false</tokenised>
+					</index>
+				</property>
+			</properties>
+		</aspect>
+
+		<aspect name="grdfFiche:motClef">
+			<title>Mots clefs du document</title>
+			<parent>cm:classifiable</parent>
+			<properties>
+				<property name="grdfFiche:motClef">
+					<title>Mots-clés</title>
+					<type>d:category</type>
+					<mandatory>false</mandatory>
+					<multiple>true</multiple>
+					<index enabled="true">
+						<atomic>true</atomic>
+						<stored>true</stored>
+						<tokenised>false</tokenised>
+					</index>
+				</property>
+			</properties>
+		</aspect>
+
+		<aspect name="grdfFiche:typeDocument">
+			<title>Type du document</title>
+			<parent>cm:classifiable</parent>
+			<properties>
+				<property name="grdfFiche:typeDocument">
+					<title>Type de document</title>
+					<type>d:category</type>
+					<mandatory>false</mandatory>
+					<multiple>false</multiple>
+					<index enabled="true">
+						<atomic>true</atomic>
+						<stored>true</stored>
+						<tokenised>false</tokenised>
+					</index>
+				</property>
+			</properties>
+		</aspect>
+
+		<aspect name="grdfFiche:processus">
+			<title>Processus</title>
+			<parent>cm:classifiable</parent>
+			<properties>
+				<property name="grdfFiche:processus">
+					<title>Processus</title>
+					<type>d:category</type>
+					<mandatory>false</mandatory>
+					<multiple>false</multiple>
+					<index enabled="true">
+						<atomic>true</atomic>
+						<stored>true</stored>
+						<tokenised>false</tokenised>
+					</index>
+				</property>
+			</properties>
+		</aspect>
+
+		<aspect name="grdfFiche:savoirFaire">
+			<title>Categorie Savoir-Faire</title>
+			<parent>cm:classifiable</parent>
+			<properties>
+				<property name="grdfFiche:savoirFaire">
+					<title>Savoir-Faire</title>
+					<type>d:category</type>
+					<mandatory>false</mandatory>
+					<multiple>false</multiple>
+					<index enabled="true">
+						<atomic>true</atomic>
+						<stored>true</stored>
+						<tokenised>false</tokenised>
+					</index>
+				</property>
+			</properties>
+		</aspect>
+		
+		<!-- propriété specifique aux documents issu de la migration -->
+		<aspect name="grdfFiche:ficheMigration">
+			<title>Proprietes custom des fiches</title>
+			<properties>
+				<property name="grdfFiche:referenceAncienne">
+					<title>Référence métier</title>
+					<type>d:text</type>
+					<index enabled="true">
+						<atomic>true</atomic>
+						<stored>true</stored>
+						<tokenised>both</tokenised>
+					</index>
+				</property>
+			</properties>
+		</aspect>
+
+		<!-- To allow Deletion -->
+		<aspect name="grdfFiche:overDated">
+			<title>Délai de conservation dépassé</title>
+		</aspect>
+
+		<!-- mails already sended for revision -->
+		<aspect name="grdfFiche:mailDejaEnvoye">
+			<title>Mail deja envoye pour revision</title>
+		</aspect>
+
+		<!-- aspect possédant des informations liées à la validité de la référence 
+			(mandatory à la création des fiches) -->
+		<aspect name="grdfFiche:ficheReference">
+			<title>Proprietes custom des fiches</title>
+			<properties>
+				<property name="grdfFiche:confidentialite">
+					<title>Niveau de confidentialité</title>
+					<type>d:text</type>
+					<default>C2 Usage interne</default>
+					<index enabled="true">
+						<atomic>true</atomic>
+						<stored>true</stored>
+						<tokenised>both</tokenised>
+					</index>
+					<constraints>
+						<constraint ref="grdfFiche:confidentLevel" />
+					</constraints>
+				</property>
+				<property name="grdfFiche:dateValidation">
+					<title>Date de validation</title>
+					<type>d:datetime</type>
+					<index enabled="true">
+						<atomic>true</atomic>
+						<stored>true</stored>
+						<tokenised>both</tokenised>
+					</index>
+				</property>
+				<property name="grdfFiche:dateApplication">
+					<title>Date d'application</title>
+					<type>d:datetime</type>
+					<index enabled="true">
+						<atomic>true</atomic>
+						<stored>false</stored>
+						<tokenised>both</tokenised>
+					</index>
+				</property>
+				<property name="grdfFiche:dureeValidite">
+					<title>Durée de validité du document (en mois)</title>
+					<type>d:int</type>
+					<index enabled="true">
+						<atomic>true</atomic>
+						<stored>true</stored>
+						<tokenised>false</tokenised>
+					</index>
+				</property>
+				<property name="grdfFiche:dateFinApplication">
+					<title>Date de fin d'application</title>
+					<type>d:datetime</type>
+					<index enabled="true">
+						<atomic>true</atomic>
+						<stored>false</stored>
+						<tokenised>both</tokenised>
+					</index>
+				</property>
+				<property name="grdfFiche:destinataire">
+					<title>Destinataire(s)</title>
+					<type>d:text</type>
+					<index enabled="true">
+						<atomic>true</atomic>
+						<stored>true</stored>
+						<tokenised>both</tokenised>
+					</index>
+				</property>
+				<property name="grdfFiche:valideur">
+					<title>Signataire(s)</title>
+					<type>d:text</type>
+					<index enabled="true">
+						<atomic>true</atomic>
+						<stored>true</stored>
+						<tokenised>both</tokenised>
+					</index>
+				</property>
+			</properties>
+		</aspect>
+
+		<!-- propriété specifique aux documents issu de la migration -->
+		<aspect name="grdfFiche:aspectDateSignature">
+			<title>Proprietes custom des fiches</title>
+			<properties>
+				<property name="grdfFiche:dateSignature">
+					<title>Date de signature</title>
+					<type>d:datetime</type>
+					<mandatory>true</mandatory>
+					<index enabled="true">
+						<atomic>true</atomic>
+						<stored>false</stored>
+						<tokenised>both</tokenised>
+					</index>
+				</property>
+			</properties>
+		</aspect>
+
+		<!-- propriété nécessaire à la génération automatique des références -->
+		<aspect name="grdfFiche:referenceCompteur">
+			<title>Compteur pour les références espace metier</title>
+			<properties>
+				<property name="grdfFiche:referenceCompteurMap">
+					<title>valeur des compteurs</title>
+					<type>d:any</type>
+				</property>
+			</properties>
+		</aspect>
+
+	</aspects>
+</model>
