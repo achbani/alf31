@@ -1,7 +1,7 @@
 <webscript>
-  <shortname>gedaff-extract</shortname>
-  <description>Start the document extraction process</description>
-  <url>/gedaff/extract/start</url>
+  <shortname>gedaff-export</shortname>
+  <description>Start the document export process</description>
+  <url>/api/export/start</url>
   <format default="html">extension</format>
   <authentication runas="admin">user</authentication>
   <transaction>required</transaction>
