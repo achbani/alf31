@@ -1,0 +1,12 @@
+<webscript>
+  <shortname>gedaff-export</shortname>
+  <description>Start the document export process</description>
+  <url>/api/export/start</url>
+  <format default="html">extension</format>
+  <authentication runas="admin">user</authentication>
+  <transaction>required</transaction>
+  <cache>
+    <never>true</never>
+  </cache>
+  <family>GAZODOC</family>
+</webscript>
