@@ -8,6 +8,8 @@ import org.alfresco.model.ContentModel;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.DateUtil;
 
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
@@ -101,7 +103,6 @@ public class ExcelParser {
             }
 
             logger.info("Parsing complete: " + parsedCount + " rows parsed, " + errorCount + " errors");
-            workbook.close();
 
         } catch (Exception e) {
             logger.error("Error parsing Excel file", e);
