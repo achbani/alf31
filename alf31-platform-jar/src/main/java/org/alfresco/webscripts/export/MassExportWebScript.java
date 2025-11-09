@@ -408,48 +408,53 @@ public class MassExportWebScript extends DeclarativeWebScript {
     /**
      * Generate manifest JSON
      */
-    private void generateManifest(List<GazodocExcelRow> rows) throws IOException {
+    private void generateManifest(List<GazodocExcelRow> rows) throws Exception {
         logToFileAndConsole("INFO", "Generating manifest...");
 
-        JSONObject manifest = new JSONObject();
-        manifest.put("exportDate", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(new Date()));
-        manifest.put("excelFile", excelFileNodeRef);
-        manifest.put("sheetName", sheetName);
-        manifest.put("totalRows", totalRows);
-        manifest.put("exportedCount", exportedCount);
-        manifest.put("notFoundCount", notFoundCount);
-        manifest.put("errorCount", errorCount);
+        try {
+            JSONObject manifest = new JSONObject();
+            manifest.put("exportDate", new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(new Date()));
+            manifest.put("excelFile", excelFileNodeRef);
+            manifest.put("sheetName", sheetName);
+            manifest.put("totalRows", totalRows);
+            manifest.put("exportedCount", exportedCount);
+            manifest.put("notFoundCount", notFoundCount);
+            manifest.put("errorCount", errorCount);
 
-        // Add statistics by status
-        JSONObject stats = new JSONObject();
-        Map<String, Integer> statusCounts = new HashMap<>();
-        for (GazodocExcelRow row : rows) {
-            String status = row.getStatus();
-            statusCounts.put(status, statusCounts.getOrDefault(status, 0) + 1);
-        }
-        stats.put("byStatus", statusCounts);
-        manifest.put("statistics", stats);
-
-        // Add list of not found documents
-        JSONArray notFound = new JSONArray();
-        for (GazodocExcelRow row : rows) {
-            if ("NOT_FOUND".equals(row.getStatus())) {
-                JSONObject item = new JSONObject();
-                item.put("rowNumber", row.getRowNumber());
-                item.put("name", row.getName());
-                item.put("referenceMetier", row.getReferenceMetier());
-                notFound.put(item);
+            // Add statistics by status
+            JSONObject stats = new JSONObject();
+            Map<String, Integer> statusCounts = new HashMap<>();
+            for (GazodocExcelRow row : rows) {
+                String status = row.getStatus();
+                statusCounts.put(status, statusCounts.getOrDefault(status, 0) + 1);
             }
-        }
-        manifest.put("notFoundDocuments", notFound);
+            stats.put("byStatus", statusCounts);
+            manifest.put("statistics", stats);
 
-        // Write to file
-        File manifestFile = new File(exportPath, "manifest.json");
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(manifestFile))) {
-            writer.write(manifest.toString(2)); // Pretty print with indent
-        }
+            // Add list of not found documents
+            JSONArray notFound = new JSONArray();
+            for (GazodocExcelRow row : rows) {
+                if ("NOT_FOUND".equals(row.getStatus())) {
+                    JSONObject item = new JSONObject();
+                    item.put("rowNumber", row.getRowNumber());
+                    item.put("name", row.getName());
+                    item.put("referenceMetier", row.getReferenceMetier());
+                    notFound.put(item);
+                }
+            }
+            manifest.put("notFoundDocuments", notFound);
 
-        logToFileAndConsole("INFO", "Manifest generated: " + manifestFile.getAbsolutePath());
+            // Write to file
+            File manifestFile = new File(exportPath, "manifest.json");
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(manifestFile))) {
+                writer.write(manifest.toString(2)); // Pretty print with indent
+            }
+
+            logToFileAndConsole("INFO", "Manifest generated: " + manifestFile.getAbsolutePath());
+        } catch (Exception e) {
+            logger.error("Error generating manifest", e);
+            throw e;
+        }
     }
 
     // ===== Logging methods =====
