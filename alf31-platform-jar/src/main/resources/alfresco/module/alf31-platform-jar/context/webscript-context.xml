@@ -20,6 +20,7 @@
 	   xsi:schemaLocation="http://www.springframework.org/schema/beans
           http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
 
+    <!-- Standard export webscript -->
     <bean id="webscript.org.alfresco.export.export-start.post"
           class="org.alfresco.webscripts.export.ExportWebScript"
           parent="webscript">
@@ -29,6 +30,33 @@
         <property name="repository" ref="repositoryHelper" />
         <property name="retryingTransactionHelper" ref="retryingTransactionHelper" />
         <property name="exportBasePath" value="${export.base.path}" />
+    </bean>
+
+    <!-- Mass export webscript (from Excel list) -->
+    <bean id="webscript.org.alfresco.export.mass-export-start.post"
+          class="org.alfresco.webscripts.export.MassExportWebScript"
+          parent="webscript">
+        <property name="nodeService" ref="nodeService"/>
+        <property name="searchService" ref="searchService"/>
+        <property name="contentService" ref="contentService"/>
+        <property name="repository" ref="repositoryHelper" />
+        <property name="retryingTransactionHelper" ref="retryingTransactionHelper" />
+        <property name="exportBasePath" value="${export.base.path}" />
+        <property name="excelParser" ref="excelParser" />
+        <property name="metadataExporter" ref="gazodocMetadataExporter" />
+    </bean>
+
+    <!-- Mass purge webscript (from Excel list) -->
+    <bean id="webscript.org.alfresco.purge.mass-purge-start.post"
+          class="org.alfresco.webscripts.purge.MassPurgeWebScript"
+          parent="webscript">
+        <property name="nodeService" ref="nodeService"/>
+        <property name="searchService" ref="searchService"/>
+        <property name="contentService" ref="contentService"/>
+        <property name="repository" ref="repositoryHelper" />
+        <property name="retryingTransactionHelper" ref="retryingTransactionHelper" />
+        <property name="exportBasePath" value="${export.base.path}" />
+        <property name="excelParser" ref="excelParser" />
     </bean>
 
 </beans>

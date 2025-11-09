@@ -20,5 +20,14 @@
        xsi:schemaLocation="http://www.springframework.org/schema/beans
           http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
 
+    <!-- Excel Parser Service -->
+    <bean id="excelParser" class="org.alfresco.service.export.ExcelParser">
+        <property name="contentService" ref="contentService"/>
+    </bean>
+
+    <!-- Gazodoc Metadata Exporter Service -->
+    <bean id="gazodocMetadataExporter" class="org.alfresco.service.export.GazodocMetadataExporter">
+        <property name="nodeService" ref="nodeService"/>
+    </bean>
 
 </beans>
