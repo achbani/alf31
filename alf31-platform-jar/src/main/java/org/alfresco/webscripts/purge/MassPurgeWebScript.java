@@ -31,8 +31,9 @@ import java.util.*;
 /**
  * WebScript pour la purge de masse de documents depuis une liste Excel.
  *
- * VALIDATION:
- * - Validation de la durée de conservation (5 ans par défaut depuis dernière modification)
+ * FONCTIONNEMENT:
+ * - Suppression directe de tous les documents listés dans le fichier Excel
+ * - Aucune validation (pas de vérification d'état ou de durée de conservation)
  * - Purge transactionnelle avec rollback automatique en cas d'erreur
  * - Logs détaillés de toutes les opérations
  *
@@ -43,7 +44,6 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
     private static final Log logger = LogFactory.getLog(MassPurgeWebScript.class);
     private static final String LOG_FILE_PREFIX = "MassPurge_";
     private static final String LOG_FILE_SUFFIX = ".log";
-    private static final int DEFAULT_CONSERVATION_YEARS = 5; // Durée conservation par défaut
 
     // GAZODOC services
     private NodeService nodeService;
@@ -67,7 +67,6 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
     private int foundCount = 0;
     private int notFoundCount = 0;
     private int deletedCount = 0;
-    private int blockedCount = 0;
     private int errorCount = 0;
 
     @Override
@@ -134,8 +133,8 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
 
                     // Summary
                     String summary = String.format(
-                        "Purge complete: %d deleted, %d blocked, %d not found, %d errors",
-                        deletedCount, blockedCount, notFoundCount, errorCount
+                        "Purge complete: %d deleted, %d not found, %d errors",
+                        deletedCount, notFoundCount, errorCount
                     );
                     logToFileAndConsole("INFO", summary);
                     logToFileAndConsole("INFO", "========================================");
@@ -145,8 +144,8 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
             }, false, true);
 
             message = String.format(
-                "Purge terminée. %d documents supprimés, %d bloqués, %d non trouvés, %d erreurs",
-                deletedCount, blockedCount, notFoundCount, errorCount
+                "Purge terminée. %d documents supprimés, %d non trouvés, %d erreurs",
+                deletedCount, notFoundCount, errorCount
             );
             success = true;
 
@@ -178,7 +177,6 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
         model.put("resultMessage", message);  // Renamed from 'message' to avoid FreeMarker conflict
         model.put("totalRows", totalRows);
         model.put("deletedCount", deletedCount);
-        model.put("blockedCount", blockedCount);
         model.put("notFoundCount", notFoundCount);
         model.put("errorCount", errorCount);
         model.put("purgeReportPath", purgeReportPath != null ? purgeReportPath : "");
@@ -265,35 +263,12 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
     }
 
     /**
-     * Validate and purge a single document
+     * Purge a single document (direct deletion without validation)
      */
     private void purgeDocument(GazodocExcelRow row, NodeRef nodeRef) {
         String docName = row.getName();
 
-        // VALIDATION: Check conservation duration
-        Date dateModification = (Date) nodeService.getProperty(nodeRef, ContentModel.PROP_MODIFIED);
-        Integer dureeConservation = (Integer) nodeService.getProperty(nodeRef, Fiche.PROP_DUREE_CONSERVATION);
-
-        if (dureeConservation == null) {
-            dureeConservation = DEFAULT_CONSERVATION_YEARS; // Default: 5 years
-        }
-
-        Calendar cal = Calendar.getInstance();
-        cal.setTime(dateModification);
-        cal.add(Calendar.YEAR, dureeConservation);
-        Date dateLimitePurge = cal.getTime();
-
-        if (new Date().before(dateLimitePurge)) {
-            long joursRestants = (dateLimitePurge.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24);
-            row.setStatus("BLOCKED");
-            row.setStatusReason("Durée conservation non atteinte (" + joursRestants + " jours restants)");
-            blockedCount++;
-            logToFileAndConsole("WARN", String.format("[%d/%d] BLOCKED: %s - Conservation: %d jours restants",
-                foundCount, totalRows, docName, joursRestants));
-            return;
-        }
-
-        // VALIDATION PASSED - Proceed with deletion
+        // Direct deletion
         try {
             nodeService.deleteNode(nodeRef);
             row.setStatus("DELETED");

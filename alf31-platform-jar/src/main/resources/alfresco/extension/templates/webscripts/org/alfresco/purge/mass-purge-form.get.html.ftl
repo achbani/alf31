@@ -201,9 +201,9 @@
             </div>
 
             <div class="info-box">
-                <h3>ℹ️ Règle de validation</h3>
-                <p>✅ <strong>Durée de conservation :</strong> 5 ans par défaut depuis la dernière modification</p>
-                <p>❌ Les documents dont la durée de conservation n'est pas atteinte seront bloqués</p>
+                <h3>ℹ️ Fonctionnement</h3>
+                <p>🔴 <strong>Suppression directe et immédiate</strong> de tous les documents listés dans l'Excel</p>
+                <p>⚠️ <strong>Aucune validation</strong> - Tous les documents trouvés seront supprimés</p>
             </div>
 
             <div class="warning-box">
@@ -221,10 +221,9 @@
             <p style="margin: 5px 0; color: #004085; font-size: 14px;">
                 1. Lecture du fichier Excel<br/>
                 2. Recherche de chaque document dans GAZODOC<br/>
-                3. Validation de la durée de conservation (5 ans par défaut)<br/>
-                4. <strong style="color: #dc3545;">Suppression définitive des documents validés</strong><br/>
-                5. Génération du rapport CSV (purge_report.csv)<br/>
-                6. Affichage du résumé (deleted, blocked, not found, errors)
+                3. <strong style="color: #dc3545;">Suppression immédiate et définitive de tous les documents trouvés</strong><br/>
+                4. Génération du rapport CSV (purge_report.csv)<br/>
+                5. Affichage du résumé (deleted, not found, errors)
             </p>
         </div>
 

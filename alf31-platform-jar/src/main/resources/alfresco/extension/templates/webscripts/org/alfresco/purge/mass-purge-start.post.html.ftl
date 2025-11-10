@@ -134,15 +134,11 @@
                     <div class="info-value" style="color: #198754">${deletedCount?c}</div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">Documents bloqués</div>
-                    <div class="info-value" style="color: #dc3545">${blockedCount?c}</div>
-                </div>
-                <div class="info-item">
                     <div class="info-label">Documents non trouvés</div>
                     <div class="info-value" style="color: #ffc107">${notFoundCount?c}</div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">Erreurs</div>
+                    <div class="info-label">Erreurs de suppression</div>
                     <div class="info-value" style="color: #dc3545">${errorCount?c}</div>
                 </div>
                 <#if purgeReportPath?? && purgeReportPath?has_content>
@@ -151,7 +147,7 @@
                     <div class="info-value" style="font-size: 14px; word-break: break-all;">${purgeReportPath}/purge_report.csv</div>
                     <p style="margin-top: 10px; color: #666;">
                         📋 purge_report.csv - Rapport détaillé de la purge<br/>
-                        ✅ ${deletedCount} documents supprimés, ${blockedCount} documents bloqués
+                        ✅ ${deletedCount} documents supprimés
                     </p>
                 </div>
                 </#if>
