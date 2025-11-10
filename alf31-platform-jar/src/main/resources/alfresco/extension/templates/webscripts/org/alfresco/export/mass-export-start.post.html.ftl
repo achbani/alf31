@@ -110,7 +110,7 @@
 
         <#if success?? && success>
             <div class="status-box status-completed">
-                <div class="success-icon">✓</div>
+                <div class="success-icon">OK</div>
                 <h2>Export terminé avec succès</h2>
                 <p>${resultMessage!"L'export massif s'est terminé avec succès."}</p>
             </div>
@@ -137,9 +137,9 @@
                     <div class="info-label">Chemin d'export (NAS)</div>
                     <div class="info-value" style="font-size: 14px; word-break: break-all;">${exportPath}</div>
                     <p style="margin-top: 10px; color: #666;">
-                        📁 documents/ - Fichiers exportés<br/>
-                        📄 metadata/export_metadata.csv - Métadonnées GAZODOC<br/>
-                        📋 manifest.json - Résumé de l'export
+                        documents/ - Fichiers exportés<br/>
+                        metadata/export_metadata.csv - Métadonnées GAZODOC<br/>
+                        manifest.json - Résumé de l'export
                     </p>
                 </div>
                 </#if>
@@ -151,14 +151,14 @@
 
         <#else>
             <div class="status-box status-failed">
-                <div class="error-icon">✗</div>
+                <div class="error-icon">ERREUR</div>
                 <h2>Erreur lors de l'export</h2>
                 <p>${resultMessage!"Une erreur inconnue s'est produite lors de l'export."}</p>
             </div>
         </#if>
 
         <div class="actions">
-            <a href="/alfresco" class="btn btn-primary">Retour à Alfresco</a>
+            <a href="/alfresco" class="btn btn-primary">Retour à GAZODOC</a>
         </div>
     </div>
 </body>

@@ -283,31 +283,32 @@ public class MassExportWebScript extends DeclarativeWebScript {
 
                     if (exported) {
                         row.setNodeRef(nodeRef.toString());
-                        row.setStatus("EXPORTED");
+                        row.setStatus("EXPORTE");
                         foundCount++;
                         exportedCount++;
-                        logToFileAndConsole("INFO", String.format("[%d/%d] EXPORTED: %s/%s",
+                        logToFileAndConsole("INFO", String.format("[%d/%d] EXPORTE: %s/%s",
                             foundCount, totalRows, row.getName(), row.getNomDocument()));
                     } else {
-                        row.setStatus("EXPORT_FAILED");
+                        row.setStatus("ECHEC_EXPORT");
                         row.setStatusReason("Failed to export file content");
                         errorCount++;
-                        logToFileAndConsole("WARN", String.format("[%d/%d] FAILED: %s",
+                        logToFileAndConsole("WARN", String.format("[%d/%d] ECHEC: %s",
                             foundCount, totalRows, row.getName()));
                     }
                 } else {
-                    row.setStatus("NOT_FOUND");
+                    row.setStatus("NON_TROUVE");
                     row.setStatusReason("Document not found in GAZODOC");
                     notFoundCount++;
-                    logToFileAndConsole("WARN", String.format("[%d/%d] NOT FOUND: %s",
+                    logToFileAndConsole("WARN", String.format("[%d/%d] NON TROUVE: %s",
                         notFoundCount + foundCount, totalRows, row.getName()));
                 }
 
             } catch (Exception e) {
-                row.setStatus("ERROR");
+                row.setStatus("ERREUR");
                 row.setStatusReason(e.getMessage());
                 errorCount++;
-                logToFileAndConsole("ERROR", "Error processing row " + row.getRowNumber() + ": " + e.getMessage());
+                logToFileAndConsole("ERROR", String.format("[%d/%d] ERREUR: %s - %s",
+                    foundCount + errorCount, totalRows, row.getName(), e.getMessage()));
             }
         }
     }
@@ -465,7 +466,7 @@ public class MassExportWebScript extends DeclarativeWebScript {
             int count = 0;
             for (GazodocExcelRow row : rows) {
                 String status = row.getStatus();
-                if ("ERROR".equals(status) || "EXPORT_FAILED".equals(status) || "NOT_FOUND".equals(status)) {
+                if ("ERREUR".equals(status) || "ECHEC_EXPORT".equals(status) || "NON_TROUVE".equals(status)) {
                     writer.write(String.format("%d,%s,%s,%s,%s,%s,%s\n",
                         row.getRowNumber(),
                         csvEscape(status),
@@ -544,7 +545,7 @@ public class MassExportWebScript extends DeclarativeWebScript {
             // Add list of documents with errors
             JSONArray errors = new JSONArray();
             for (GazodocExcelRow row : rows) {
-                if ("ERROR".equals(row.getStatus()) || "EXPORT_FAILED".equals(row.getStatus())) {
+                if ("ERREUR".equals(row.getStatus()) || "ECHEC_EXPORT".equals(row.getStatus())) {
                     JSONObject item = new JSONObject();
                     item.put("rowNumber", row.getRowNumber());
                     item.put("name", row.getName());

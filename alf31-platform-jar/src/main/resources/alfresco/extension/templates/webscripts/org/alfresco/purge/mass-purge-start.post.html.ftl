@@ -119,7 +119,7 @@
 
         <#if success?? && success>
             <div class="status-box status-completed">
-                <div class="success-icon">✓</div>
+                <div class="success-icon">OK</div>
                 <h2>Purge terminée</h2>
                 <p>${resultMessage!"La purge de masse est terminée."}</p>
             </div>
@@ -146,8 +146,8 @@
                     <div class="info-label">Rapport de purge</div>
                     <div class="info-value" style="font-size: 14px; word-break: break-all;">${purgeReportPath}/purge_report.csv</div>
                     <p style="margin-top: 10px; color: #666;">
-                        📋 purge_report.csv - Rapport détaillé de la purge<br/>
-                        ✅ ${deletedCount} documents supprimés
+                        purge_report.csv - Rapport détaillé de la purge<br/>
+                        ${deletedCount} documents supprimés
                     </p>
                 </div>
                 </#if>
@@ -159,7 +159,7 @@
 
         <#else>
             <div class="status-box status-failed">
-                <div class="error-icon">✗</div>
+                <div class="error-icon">ERREUR</div>
                 <h2>Erreur lors de la purge</h2>
                 <p>${resultMessage!"Une erreur inconnue s'est produite lors de la purge."}</p>
             </div>

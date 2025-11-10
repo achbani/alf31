@@ -246,18 +246,19 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
                     purgeDocument(row, nodeRef);
 
                 } else {
-                    row.setStatus("NOT_FOUND");
+                    row.setStatus("NON_TROUVE");
                     row.setStatusReason("Document not found in GAZODOC");
                     notFoundCount++;
-                    logToFileAndConsole("WARN", String.format("[%d/%d] NOT FOUND: %s",
+                    logToFileAndConsole("WARN", String.format("[%d/%d] NON TROUVE: %s",
                         notFoundCount + foundCount, totalRows, row.getName()));
                 }
 
             } catch (Exception e) {
-                row.setStatus("ERROR");
+                row.setStatus("ERREUR");
                 row.setStatusReason(e.getMessage());
                 errorCount++;
-                logToFileAndConsole("ERROR", "Error processing row " + row.getRowNumber() + ": " + e.getMessage());
+                logToFileAndConsole("ERROR", String.format("[%d/%d] ERREUR: %s - %s",
+                    foundCount + errorCount, totalRows, row.getName(), e.getMessage()));
             }
         }
     }
@@ -271,16 +272,16 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
         // Direct deletion
         try {
             nodeService.deleteNode(nodeRef);
-            row.setStatus("DELETED");
+            row.setStatus("SUPPRIME");
             row.setStatusReason("Document supprimé avec succès");
             deletedCount++;
-            logToFileAndConsole("INFO", String.format("[%d/%d] ✅ DELETED: %s",
+            logToFileAndConsole("INFO", String.format("[%d/%d] SUPPRIME: %s",
                 foundCount, totalRows, docName));
         } catch (Exception e) {
-            row.setStatus("DELETE_FAILED");
+            row.setStatus("ECHEC_SUPPRESSION");
             row.setStatusReason("Erreur suppression: " + e.getMessage());
             errorCount++;
-            logToFileAndConsole("ERROR", String.format("[%d/%d] ❌ DELETE FAILED: %s - %s",
+            logToFileAndConsole("ERROR", String.format("[%d/%d] ECHEC SUPPRESSION: %s - %s",
                 foundCount, totalRows, docName, e.getMessage()));
         }
     }

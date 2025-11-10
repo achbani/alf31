@@ -150,30 +150,30 @@
 </head>
 <body>
     <div class="container">
-        <h1>🗑️ Purge Massive de Documents GAZODOC</h1>
+        <h1>Purge Massive de Documents GAZODOC</h1>
 
         <div class="danger-box">
-            <h3>⚠️ ATTENTION - Opération IRRÉVERSIBLE</h3>
+            <h3>ATTENTION - Opération IRRÉVERSIBLE</h3>
             <p><strong>Cette opération supprime définitivement les documents de GAZODOC !</strong></p>
-            <p>✅ Assurez-vous d'avoir effectué une sauvegarde complète avant toute purge</p>
-            <p>✅ Export massif obligatoire avant purge (via /api/export/mass/form)</p>
+            <p>Assurez-vous d'avoir effectué une sauvegarde complète avant toute purge</p>
+            <p>Export massif obligatoire avant purge (via /api/export/mass/form)</p>
         </div>
 
-        <h2>📁 Prérequis OBLIGATOIRES</h2>
+        <h2>Prérequis OBLIGATOIRES</h2>
         <div class="step">
-            <strong>1.</strong> ✅ Backup complet de GAZODOC effectué
+            <strong>1.</strong> Backup complet de GAZODOC effectué
         </div>
         <div class="step">
-            <strong>2.</strong> ✅ Export massif des documents réalisé (via /api/export/mass/form)
+            <strong>2.</strong> Export massif des documents réalisé (via /api/export/mass/form)
         </div>
         <div class="step">
-            <strong>3.</strong> ✅ Fichier Excel avec colonne "Name" uploadé dans GAZODOC
+            <strong>3.</strong> Fichier Excel avec colonne "Name" uploadé dans GAZODOC
         </div>
         <div class="step">
-            <strong>4.</strong> ✅ NodeRef du fichier Excel récupéré
+            <strong>4.</strong> NodeRef du fichier Excel récupéré
         </div>
 
-        <h2>📝 Formulaire de purge</h2>
+        <h2>Formulaire de purge</h2>
         <form action="/alfresco/s/api/purge/mass/start" method="POST">
 
             <!-- Champ 1 : NodeRef du fichier Excel -->
@@ -185,7 +185,7 @@
                        placeholder="workspace://SpacesStore/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                        required />
                 <small>
-                    📌 Même fichier Excel que pour l'export
+                    Même fichier Excel que pour l'export
                 </small>
             </div>
 
@@ -201,23 +201,23 @@
             </div>
 
             <div class="info-box">
-                <h3>ℹ️ Fonctionnement</h3>
-                <p>🔴 <strong>Suppression directe et immédiate</strong> de tous les documents listés dans l'Excel</p>
-                <p>⚠️ <strong>Aucune validation</strong> - Tous les documents trouvés seront supprimés</p>
+                <h3>Fonctionnement</h3>
+                <p><strong>Suppression directe et immédiate</strong> de tous les documents listés dans l'Excel</p>
+                <p><strong>Aucune validation</strong> - Tous les documents trouvés seront supprimés</p>
             </div>
 
             <div class="warning-box">
-                <h3>⚠️ Avant de valider</h3>
-                <p>✅ Vérifiez que le NodeRef est correct</p>
-                <p>✅ Vérifiez que le nom de l'onglet correspond</p>
-                <p>✅ Assurez-vous que le backup et l'export sont OK</p>
+                <h3>Avant de valider</h3>
+                <p>Vérifiez que le NodeRef est correct</p>
+                <p>Vérifiez que le nom de l'onglet correspond</p>
+                <p>Assurez-vous que le backup et l'export sont OK</p>
             </div>
 
-            <button type="submit" id="submitButton">🔴 LANCER LA PURGE</button>
+            <button type="submit" id="submitButton">LANCER LA PURGE</button>
         </form>
 
         <div style="margin-top: 30px; padding: 15px; background-color: #e7f3ff; border-radius: 4px;">
-            <h3 style="margin: 0 0 10px 0; color: #004085;">📋 Déroulement de la purge</h3>
+            <h3 style="margin: 0 0 10px 0; color: #004085;">Déroulement de la purge</h3>
             <p style="margin: 5px 0; color: #004085; font-size: 14px;">
                 1. Lecture du fichier Excel<br/>
                 2. Recherche de chaque document dans GAZODOC<br/>
@@ -228,7 +228,7 @@
         </div>
 
         <div style="margin-top: 20px; text-align: center;">
-            <a href="/alfresco" style="color: #007bff; text-decoration: none;">← Retour à GAZODOC</a>
+            <a href="/alfresco" style="color: #007bff; text-decoration: none;">Retour à GAZODOC</a>
         </div>
     </div>
 </body>
