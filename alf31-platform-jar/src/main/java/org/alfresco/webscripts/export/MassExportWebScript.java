@@ -262,33 +262,33 @@ public class MassExportWebScript extends DeclarativeWebScript {
 
         for (GazodocExcelRow row : rows) {
             try {
-                // Search document by cm:name using "Nom du document" column (column 15)
-                NodeRef nodeRef = searchDocumentByName(row.getNomDocument());
+                // Search document by cm:name using "Name" column (column 1)
+                NodeRef nodeRef = searchDocumentByName(row.getName());
 
                 if (nodeRef != null) {
-                    // Export document
-                    boolean exported = exportDocument(nodeRef, documentsDir);
+                    // Export document with filename from "Nom du document" column (column 15)
+                    boolean exported = exportDocument(nodeRef, documentsDir, row.getNomDocument());
 
                     if (exported) {
                         row.setNodeRef(nodeRef.toString());
                         row.setStatus("EXPORTED");
                         foundCount++;
                         exportedCount++;
-                        logToFileAndConsole("INFO", String.format("[%d/%d] EXPORTED: %s",
-                            foundCount, totalRows, row.getNomDocument()));
+                        logToFileAndConsole("INFO", String.format("[%d/%d] EXPORTED: %s (search: %s, file: %s)",
+                            foundCount, totalRows, row.getName(), row.getName(), row.getNomDocument()));
                     } else {
                         row.setStatus("EXPORT_FAILED");
                         row.setStatusReason("Failed to export file content");
                         errorCount++;
                         logToFileAndConsole("WARN", String.format("[%d/%d] FAILED: %s",
-                            foundCount, totalRows, row.getNomDocument()));
+                            foundCount, totalRows, row.getName()));
                     }
                 } else {
                     row.setStatus("NOT_FOUND");
                     row.setStatusReason("Document not found in Alfresco");
                     notFoundCount++;
                     logToFileAndConsole("WARN", String.format("[%d/%d] NOT FOUND: %s",
-                        notFoundCount + foundCount, totalRows, row.getNomDocument()));
+                        notFoundCount + foundCount, totalRows, row.getName()));
                 }
 
             } catch (Exception e) {
@@ -338,15 +338,18 @@ public class MassExportWebScript extends DeclarativeWebScript {
     /**
      * Export a single document to the export directory
      */
-    private boolean exportDocument(NodeRef nodeRef, File exportDir) {
+    private boolean exportDocument(NodeRef nodeRef, File exportDir, String desiredFileName) {
         if (!nodeService.exists(nodeRef)) {
             return false;
         }
 
-        // Get document name
-        String fileName = (String) nodeService.getProperty(nodeRef, ContentModel.PROP_NAME);
-        if (fileName == null) {
-            fileName = nodeRef.getId() + ".bin";
+        // Use provided fileName from "Nom du document" column, fallback to cm:name if null
+        String fileName = desiredFileName;
+        if (fileName == null || fileName.trim().isEmpty()) {
+            fileName = (String) nodeService.getProperty(nodeRef, ContentModel.PROP_NAME);
+            if (fileName == null) {
+                fileName = nodeRef.getId() + ".bin";
+            }
         }
 
         // Handle duplicate file names
