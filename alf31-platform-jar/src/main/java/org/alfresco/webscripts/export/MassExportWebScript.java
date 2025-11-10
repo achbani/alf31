@@ -130,6 +130,11 @@ public class MassExportWebScript extends DeclarativeWebScript {
                     // Export metadata to CSV
                     exportMetadata(rows);
 
+                    // Generate error report if there are errors
+                    if (errorCount > 0 || notFoundCount > 0) {
+                        generateErrorReport(rows);
+                    }
+
                     // Generate manifest
                     generateManifest(rows);
 
@@ -145,10 +150,17 @@ public class MassExportWebScript extends DeclarativeWebScript {
                 }
             }, false, true);
 
-            message = String.format(
-                "Export terminé avec succès. %d documents exportés sur %d (Non trouvés: %d, Erreurs: %d)",
-                exportedCount, totalRows, notFoundCount, errorCount
-            );
+            if (errorCount > 0 || notFoundCount > 0) {
+                message = String.format(
+                    "Export terminé avec succès. %d documents exportés sur %d (Non trouvés: %d, Erreurs: %d). Voir errors_report.csv pour les détails.",
+                    exportedCount, totalRows, notFoundCount, errorCount
+                );
+            } else {
+                message = String.format(
+                    "Export terminé avec succès. %d documents exportés sur %d. Aucune erreur.",
+                    exportedCount, totalRows
+                );
+            }
             success = true;
 
         } catch (Exception e) {
@@ -409,6 +421,57 @@ public class MassExportWebScript extends DeclarativeWebScript {
     }
 
     /**
+     * Generate error report CSV for failed and not found documents
+     */
+    private void generateErrorReport(List<GazodocExcelRow> rows) {
+        logToFileAndConsole("INFO", "Generating error report...");
+
+        File errorReportFile = new File(exportPath, "errors_report.csv");
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(errorReportFile))) {
+            // Write CSV header
+            writer.write("Ligne Excel,Statut,Name (colonne 1),Nom du document (colonne 15),Référence métier,NodeRef,Raison\n");
+
+            // Write errors and not found documents
+            int count = 0;
+            for (GazodocExcelRow row : rows) {
+                String status = row.getStatus();
+                if ("ERROR".equals(status) || "EXPORT_FAILED".equals(status) || "NOT_FOUND".equals(status)) {
+                    writer.write(String.format("%d,%s,%s,%s,%s,%s,%s\n",
+                        row.getRowNumber(),
+                        csvEscape(status),
+                        csvEscape(row.getName()),
+                        csvEscape(row.getNomDocument()),
+                        csvEscape(row.getReferenceMetier()),
+                        csvEscape(row.getNodeRef()),
+                        csvEscape(row.getStatusReason())
+                    ));
+                    count++;
+                }
+            }
+
+            logToFileAndConsole("INFO", String.format("Error report generated: %s (%d entries)",
+                errorReportFile.getAbsolutePath(), count));
+
+        } catch (Exception e) {
+            logger.error("Error generating error report", e);
+            logToFileAndConsole("ERROR", "Failed to generate error report: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Escape CSV value
+     */
+    private String csvEscape(String value) {
+        if (value == null) {
+            return "";
+        }
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
+    }
+
+    /**
      * Generate manifest JSON
      */
     private void generateManifest(List<GazodocExcelRow> rows) throws Exception {
@@ -441,11 +504,29 @@ public class MassExportWebScript extends DeclarativeWebScript {
                     JSONObject item = new JSONObject();
                     item.put("rowNumber", row.getRowNumber());
                     item.put("name", row.getName());
+                    item.put("nomDocument", row.getNomDocument());
                     item.put("referenceMetier", row.getReferenceMetier());
                     notFound.put(item);
                 }
             }
             manifest.put("notFoundDocuments", notFound);
+
+            // Add list of documents with errors
+            JSONArray errors = new JSONArray();
+            for (GazodocExcelRow row : rows) {
+                if ("ERROR".equals(row.getStatus()) || "EXPORT_FAILED".equals(row.getStatus())) {
+                    JSONObject item = new JSONObject();
+                    item.put("rowNumber", row.getRowNumber());
+                    item.put("name", row.getName());
+                    item.put("nomDocument", row.getNomDocument());
+                    item.put("referenceMetier", row.getReferenceMetier());
+                    item.put("status", row.getStatus());
+                    item.put("reason", row.getStatusReason());
+                    item.put("nodeRef", row.getNodeRef());
+                    errors.put(item);
+                }
+            }
+            manifest.put("errorDocuments", errors);
 
             // Write to file
             File manifestFile = new File(exportPath, "manifest.json");
