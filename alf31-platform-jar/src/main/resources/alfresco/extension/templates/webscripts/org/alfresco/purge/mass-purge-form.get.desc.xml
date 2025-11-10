@@ -1,0 +1,9 @@
+<webscript>
+  <shortname>Mass Purge Form</shortname>
+  <description>Formulaire pour la purge massif de documents depuis fichier Excel</description>
+  <url>/api/purge/mass/form</url>
+  <format default="html">extension</format>
+  <authentication runas="admin">user</authentication>
+  <transaction>none</transaction>
+  <family>GAZODOC</family>
+</webscript>

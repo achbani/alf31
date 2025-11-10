@@ -84,7 +84,7 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
             logger.error("Exception during mass purge", e);
             Map<String, Object> model = new HashMap<>();
             model.put("success", false);
-            model.put("message", "Error during mass purge: " + e.getMessage());
+            model.put("resultMessage", "Error during mass purge: " + e.getMessage());
             return model;
         }
     }
@@ -181,7 +181,7 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
 
         // Build model for template
         model.put("success", success);
-        model.put("message", message);
+        model.put("resultMessage", message);  // Renamed from 'message' to avoid FreeMarker conflict
         model.put("totalRows", totalRows);
         model.put("deletedCount", deletedCount);
         model.put("blockedCount", blockedCount);

@@ -122,13 +122,13 @@
                 <div class="status-box status-dryrun">
                     <div class="warning-icon">⚠️</div>
                     <h2>Simulation terminée (DRY-RUN)</h2>
-                    <p>${message!"La simulation de purge s'est terminée avec succès. Aucun document n'a été supprimé."}</p>
+                    <p>${resultMessage!"La simulation de purge s'est terminée avec succès. Aucun document n'a été supprimé."}</p>
                 </div>
             <#else>
                 <div class="status-box status-completed">
                     <div class="success-icon">✓</div>
                     <h2>Purge terminée avec succès</h2>
-                    <p>${message!"La purge massif s'est terminée avec succès."}</p>
+                    <p>${resultMessage!"La purge massif s'est terminée avec succès."}</p>
                 </div>
             </#if>
 
@@ -181,7 +181,7 @@
             <div class="status-box status-failed">
                 <div class="error-icon">✗</div>
                 <h2>Erreur lors de la purge</h2>
-                <p>${message!"Une erreur inconnue s'est produite lors de la purge."}</p>
+                <p>${resultMessage!"Une erreur inconnue s'est produite lors de la purge."}</p>
             </div>
         </#if>
 

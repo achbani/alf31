@@ -1,0 +1,9 @@
+<webscript>
+  <shortname>Mass Export Form</shortname>
+  <description>Formulaire pour l'export massif de documents depuis fichier Excel</description>
+  <url>/api/export/mass/form</url>
+  <format default="html">extension</format>
+  <authentication runas="admin">user</authentication>
+  <transaction>none</transaction>
+  <family>GAZODOC</family>
+</webscript>

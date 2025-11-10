@@ -176,7 +176,7 @@ public class MassExportWebScript extends DeclarativeWebScript {
 
         // Build model for template
         model.put("success", success);
-        model.put("message", message);
+        model.put("resultMessage", message);  // Renamed from 'message' to avoid FreeMarker conflict
         model.put("totalRows", totalRows);
         model.put("exportedCount", exportedCount);
         model.put("notFoundCount", notFoundCount);

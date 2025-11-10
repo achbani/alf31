@@ -112,7 +112,7 @@
             <div class="status-box status-completed">
                 <div class="success-icon">✓</div>
                 <h2>Export terminé avec succès</h2>
-                <p>${message!"L'export massif s'est terminé avec succès."}</p>
+                <p>${resultMessage!"L'export massif s'est terminé avec succès."}</p>
             </div>
 
             <div class="info-grid">
@@ -153,7 +153,7 @@
             <div class="status-box status-failed">
                 <div class="error-icon">✗</div>
                 <h2>Erreur lors de l'export</h2>
-                <p>${message!"Une erreur inconnue s'est produite lors de l'export."}</p>
+                <p>${resultMessage!"Une erreur inconnue s'est produite lors de l'export."}</p>
             </div>
         </#if>
 
