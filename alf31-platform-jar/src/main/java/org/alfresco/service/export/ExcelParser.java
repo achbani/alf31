@@ -8,7 +8,6 @@ import org.alfresco.model.ContentModel;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DateUtil;
 
 import java.io.InputStream;
@@ -226,6 +225,7 @@ public class ExcelParser {
 
     /**
      * Récupère la valeur d'une cellule sous forme de String
+     * Compatible avec Apache POI 3.9 (Alfresco bundled version)
      */
     private String getCellValue(Row row, int cellIndex) {
         Cell cell = row.getCell(cellIndex);
@@ -233,11 +233,13 @@ public class ExcelParser {
             return null;
         }
 
-        switch (cell.getCellType()) {
-            case STRING:
+        int cellType = cell.getCellType();
+
+        switch (cellType) {
+            case Cell.CELL_TYPE_STRING:
                 return cell.getStringCellValue().trim();
 
-            case NUMERIC:
+            case Cell.CELL_TYPE_NUMERIC:
                 if (DateUtil.isCellDateFormatted(cell)) {
                     // Si c'est une date, la formater
                     Date date = cell.getDateCellValue();
@@ -247,10 +249,10 @@ public class ExcelParser {
                     return String.valueOf((long) cell.getNumericCellValue());
                 }
 
-            case BOOLEAN:
+            case Cell.CELL_TYPE_BOOLEAN:
                 return String.valueOf(cell.getBooleanCellValue());
 
-            case FORMULA:
+            case Cell.CELL_TYPE_FORMULA:
                 // Évaluer la formule
                 try {
                     return cell.getStringCellValue().trim();
@@ -258,7 +260,7 @@ public class ExcelParser {
                     return String.valueOf(cell.getNumericCellValue());
                 }
 
-            case BLANK:
+            case Cell.CELL_TYPE_BLANK:
                 return null;
 
             default:
