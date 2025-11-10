@@ -194,7 +194,7 @@
         </div>
 
         <h2>📝 Formulaire de purge</h2>
-        <form action="/alfresco/api/purge/mass/start" method="POST">
+        <form action="/alfresco/s/api/purge/mass/start" method="POST">
 
             <!-- Champ 1 : NodeRef du fichier Excel -->
             <div class="form-group">
