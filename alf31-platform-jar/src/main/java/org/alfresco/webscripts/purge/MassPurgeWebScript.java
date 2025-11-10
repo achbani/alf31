@@ -283,8 +283,12 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
         // VALIDATION 1: Check document state
         String state = (String) nodeService.getProperty(nodeRef, Fiche.PROP_ETAT_DOC);
 
-        if (!"ARCHIVE".equals(state)) {
-            if (autoArchive && "REF".equals(state)) {
+        // Accept both "ARCHIVE" (key) and "Archivé" (label) for compatibility
+        boolean isArchived = "ARCHIVE".equals(state) || "Archivé".equals(state);
+        boolean isRef = "REF".equals(state) || "Valide".equals(state);
+
+        if (!isArchived) {
+            if (autoArchive && isRef) {
                 // Auto-archive document
                 if (!dryRun) {
                     nodeService.setProperty(nodeRef, Fiche.PROP_ETAT_DOC, "ARCHIVE");
@@ -299,9 +303,9 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
             } else {
                 // Block deletion
                 row.setStatus("BLOCKED");
-                row.setStatusReason("État du document: " + state + " (doit être ARCHIVE)");
+                row.setStatusReason("État du document: " + state + " (doit être ARCHIVE ou Archivé)");
                 blockedCount++;
-                logToFileAndConsole("WARN", String.format("[%d/%d] BLOCKED: %s - État: %s (non ARCHIVE)",
+                logToFileAndConsole("WARN", String.format("[%d/%d] BLOCKED: %s - État: %s (non archivé)",
                     foundCount, totalRows, docName, state));
                 return;
             }
