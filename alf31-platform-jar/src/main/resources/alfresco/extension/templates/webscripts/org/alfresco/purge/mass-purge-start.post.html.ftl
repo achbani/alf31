@@ -118,19 +118,11 @@
         </div>
 
         <#if success?? && success>
-            <#if dryRun>
-                <div class="status-box status-dryrun">
-                    <div class="warning-icon">⚠️</div>
-                    <h2>Simulation terminée (DRY-RUN)</h2>
-                    <p>${resultMessage!"La simulation de purge s'est terminée avec succès. Aucun document n'a été supprimé."}</p>
-                </div>
-            <#else>
-                <div class="status-box status-completed">
-                    <div class="success-icon">✓</div>
-                    <h2>Purge terminée avec succès</h2>
-                    <p>${resultMessage!"La purge massif s'est terminée avec succès."}</p>
-                </div>
-            </#if>
+            <div class="status-box status-completed">
+                <div class="success-icon">✓</div>
+                <h2>Purge terminée</h2>
+                <p>${resultMessage!"La purge de masse est terminée."}</p>
+            </div>
 
             <div class="info-grid">
                 <div class="info-item">
@@ -146,11 +138,7 @@
                     <div class="info-value" style="color: #dc3545">${blockedCount?c}</div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">Auto-archivés</div>
-                    <div class="info-value" style="color: #0dcaf0">${archivedCount?c}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Non trouvés</div>
+                    <div class="info-label">Documents non trouvés</div>
                     <div class="info-value" style="color: #ffc107">${notFoundCount?c}</div>
                 </div>
                 <div class="info-item">
@@ -163,11 +151,7 @@
                     <div class="info-value" style="font-size: 14px; word-break: break-all;">${purgeReportPath}/purge_report.csv</div>
                     <p style="margin-top: 10px; color: #666;">
                         📋 purge_report.csv - Rapport détaillé de la purge<br/>
-                        <#if dryRun>
-                        ⚠️ Mode simulation : Aucun document n'a été supprimé
-                        <#else>
-                        ✅ Mode réel : ${deletedCount} documents supprimés
-                        </#if>
+                        ✅ ${deletedCount} documents supprimés, ${blockedCount} documents bloqués
                     </p>
                 </div>
                 </#if>
@@ -186,7 +170,7 @@
         </#if>
 
         <div class="actions">
-            <a href="/alfresco" class="btn btn-primary">Retour à Alfresco</a>
+            <a href="/alfresco" class="btn btn-primary">Retour à GAZODOC</a>
         </div>
     </div>
 </body>

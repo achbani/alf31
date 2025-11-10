@@ -82,13 +82,6 @@
         button:hover {
             background-color: #c82333;
         }
-        button.dry-run {
-            background-color: #ffc107;
-            color: #000;
-        }
-        button.dry-run:hover {
-            background-color: #e0a800;
-        }
         .required {
             color: red;
         }
@@ -154,19 +147,6 @@
             color: #495057;
         }
     </style>
-    <script>
-        function updateButtonStyle() {
-            var dryRun = document.getElementById('dryRun').checked;
-            var button = document.getElementById('submitButton');
-            if (dryRun) {
-                button.className = 'dry-run';
-                button.innerHTML = '🧪 Lancer la SIMULATION (DRY-RUN)';
-            } else {
-                button.className = '';
-                button.innerHTML = '🔴 LANCER LA PURGE RÉELLE';
-            }
-        }
-    </script>
 </head>
 <body>
     <div class="container">
@@ -174,20 +154,20 @@
 
         <div class="danger-box">
             <h3>⚠️ ATTENTION - Opération IRRÉVERSIBLE</h3>
-            <p><strong>Cette opération supprime définitivement les documents d'Alfresco !</strong></p>
+            <p><strong>Cette opération supprime définitivement les documents de GAZODOC !</strong></p>
             <p>✅ Assurez-vous d'avoir effectué une sauvegarde complète avant toute purge</p>
-            <p>✅ Utilisez OBLIGATOIREMENT le mode DRY-RUN en premier lieu</p>
+            <p>✅ Export massif obligatoire avant purge (via /api/export/mass/form)</p>
         </div>
 
         <h2>📁 Prérequis OBLIGATOIRES</h2>
         <div class="step">
-            <strong>1.</strong> ✅ Backup complet d'Alfresco effectué
+            <strong>1.</strong> ✅ Backup complet de GAZODOC effectué
         </div>
         <div class="step">
             <strong>2.</strong> ✅ Export massif des documents réalisé (via /api/export/mass/form)
         </div>
         <div class="step">
-            <strong>3.</strong> ✅ Fichier Excel avec colonne "Name" uploadé dans Alfresco
+            <strong>3.</strong> ✅ Fichier Excel avec colonne "Name" uploadé dans GAZODOC
         </div>
         <div class="step">
             <strong>4.</strong> ✅ NodeRef du fichier Excel récupéré
@@ -220,90 +200,37 @@
                 <small>Par défaut : "Finances"</small>
             </div>
 
-            <h2>⚙️ Options de purge</h2>
-
-            <!-- Option 1 : Mode DRY-RUN -->
-            <div class="form-group">
-                <div class="checkbox-group" style="background-color: #fff3cd;">
-                    <input type="checkbox"
-                           id="dryRun"
-                           name="dryRun"
-                           value="true"
-                           checked
-                           onchange="updateButtonStyle()" />
-                    <label for="dryRun">
-                        <strong>🧪 Mode SIMULATION (DRY-RUN)</strong> - Recommandé pour la première exécution
-                    </label>
-                </div>
-                <small>
-                    ✅ <strong>ACTIVÉ par défaut</strong> : Simule la purge sans supprimer les documents<br/>
-                    ⚠️ Décochez pour effectuer une vraie suppression (IRRÉVERSIBLE)
-                </small>
-            </div>
-
-            <!-- Option 2 : Auto-archivage -->
-            <div class="form-group">
-                <div class="checkbox-group">
-                    <input type="checkbox"
-                           id="autoArchive"
-                           name="autoArchive"
-                           value="true"
-                           checked />
-                    <label for="autoArchive">
-                        <strong>📦 Auto-archivage</strong> - Archiver automatiquement les documents en état "VALIDE"
-                    </label>
-                </div>
-                <small>
-                    ✅ <strong>ACTIVÉ par défaut</strong> : Les documents avec état="REF" (VALIDE) seront archivés avant suppression<br/>
-                    ❌ Décoché : Les documents non archivés seront bloqués
-                </small>
-            </div>
-
             <div class="info-box">
-                <h3>ℹ️ Règles de validation automatique</h3>
-                <p>✅ <strong>État du document :</strong> Doit être "ARCHIVE" (ou "REF" si auto-archivage activé)</p>
-                <p>✅ <strong>Durée de conservation :</strong> 5 ans par défaut après archivage</p>
-                <p>❌ Les documents bloqués ne seront PAS supprimés (voir rapport)</p>
+                <h3>ℹ️ Règle de validation</h3>
+                <p>✅ <strong>Durée de conservation :</strong> 5 ans par défaut depuis la dernière modification</p>
+                <p>❌ Les documents dont la durée de conservation n'est pas atteinte seront bloqués</p>
             </div>
 
             <div class="warning-box">
                 <h3>⚠️ Avant de valider</h3>
                 <p>✅ Vérifiez que le NodeRef est correct</p>
-                <p>✅ Vérifiez que le mode DRY-RUN est activé (première fois)</p>
-                <p>✅ Assurez-vous que le backup est OK</p>
+                <p>✅ Vérifiez que le nom de l'onglet correspond</p>
+                <p>✅ Assurez-vous que le backup et l'export sont OK</p>
             </div>
 
-            <button type="submit" id="submitButton">🧪 Lancer la SIMULATION (DRY-RUN)</button>
+            <button type="submit" id="submitButton">🔴 LANCER LA PURGE</button>
         </form>
 
         <div style="margin-top: 30px; padding: 15px; background-color: #e7f3ff; border-radius: 4px;">
             <h3 style="margin: 0 0 10px 0; color: #004085;">📋 Déroulement de la purge</h3>
             <p style="margin: 5px 0; color: #004085; font-size: 14px;">
-                <strong>Mode DRY-RUN (simulation) :</strong><br/>
                 1. Lecture du fichier Excel<br/>
-                2. Recherche de chaque document<br/>
-                3. Validation des règles métier (sans suppression)<br/>
-                4. Génération du rapport CSV<br/>
-                5. Affichage du résumé (0 suppression effectuée)
-            </p>
-            <p style="margin: 15px 0 5px 0; color: #004085; font-size: 14px;">
-                <strong>Mode RÉEL (dryRun décoché) :</strong><br/>
-                1-2. Idem simulation<br/>
-                3. Auto-archivage si nécessaire<br/>
-                4. <strong style="color: #dc3545;">Suppression définitive des documents</strong><br/>
-                5. Génération du rapport CSV<br/>
-                6. Affichage du résumé
+                2. Recherche de chaque document dans GAZODOC<br/>
+                3. Validation de la durée de conservation (5 ans par défaut)<br/>
+                4. <strong style="color: #dc3545;">Suppression définitive des documents validés</strong><br/>
+                5. Génération du rapport CSV (purge_report.csv)<br/>
+                6. Affichage du résumé (deleted, blocked, not found, errors)
             </p>
         </div>
 
         <div style="margin-top: 20px; text-align: center;">
-            <a href="/alfresco" style="color: #007bff; text-decoration: none;">← Retour à Alfresco</a>
+            <a href="/alfresco" style="color: #007bff; text-decoration: none;">← Retour à GAZODOC</a>
         </div>
     </div>
-
-    <script>
-        // Initialize button text
-        updateButtonStyle();
-    </script>
 </body>
 </html>

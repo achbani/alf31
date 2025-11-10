@@ -31,10 +31,8 @@ import java.util.*;
 /**
  * WebScript pour la purge de masse de documents depuis une liste Excel.
  *
- * SÉCURITÉS INTÉGRÉES:
- * - Validation inline des règles métier (état ARCHIVE, durée conservation)
- * - Mode DRY-RUN obligatoire en première exécution
- * - Auto-archivage des documents en état VALIDE
+ * VALIDATION:
+ * - Validation de la durée de conservation (5 ans par défaut depuis dernière modification)
  * - Purge transactionnelle avec rollback automatique en cas d'erreur
  * - Logs détaillés de toutes les opérations
  *
@@ -60,8 +58,6 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
     private String purgeReportPath;
     private String excelFileNodeRef;
     private String sheetName;
-    private boolean dryRun;
-    private boolean autoArchive;
 
     // Logging
     private NodeRef logFileRef;
@@ -72,7 +68,6 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
     private int notFoundCount = 0;
     private int deletedCount = 0;
     private int blockedCount = 0;
-    private int archivedCount = 0;
     private int errorCount = 0;
 
     @Override
@@ -139,8 +134,8 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
 
                     // Summary
                     String summary = String.format(
-                        "Purge complete: %d deleted, %d blocked, %d auto-archived, %d not found, %d errors",
-                        deletedCount, blockedCount, archivedCount, notFoundCount, errorCount
+                        "Purge complete: %d deleted, %d blocked, %d not found, %d errors",
+                        deletedCount, blockedCount, notFoundCount, errorCount
                     );
                     logToFileAndConsole("INFO", summary);
                     logToFileAndConsole("INFO", "========================================");
@@ -150,9 +145,8 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
             }, false, true);
 
             message = String.format(
-                "Purge terminée. %d supprimés, %d bloqués, %d archivés, %d non trouvés, %d erreurs (Mode: %s)",
-                deletedCount, blockedCount, archivedCount, notFoundCount, errorCount,
-                dryRun ? "DRY-RUN" : "RÉEL"
+                "Purge terminée. %d documents supprimés, %d bloqués, %d non trouvés, %d erreurs",
+                deletedCount, blockedCount, notFoundCount, errorCount
             );
             success = true;
 
@@ -185,10 +179,8 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
         model.put("totalRows", totalRows);
         model.put("deletedCount", deletedCount);
         model.put("blockedCount", blockedCount);
-        model.put("archivedCount", archivedCount);
         model.put("notFoundCount", notFoundCount);
         model.put("errorCount", errorCount);
-        model.put("dryRun", dryRun);
         model.put("purgeReportPath", purgeReportPath != null ? purgeReportPath : "");
         model.put("duration", duration);
 
@@ -201,8 +193,6 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
     private void initializeParameters(WebScriptRequest req) {
         this.excelFileNodeRef = req.getParameter("excelFileNodeRef");
         this.sheetName = req.getParameter("sheetName");
-        this.dryRun = Boolean.parseBoolean(req.getParameter("dryRun"));
-        this.autoArchive = Boolean.parseBoolean(req.getParameter("autoArchive"));
 
         if (excelFileNodeRef == null || excelFileNodeRef.isEmpty()) {
             throw new IllegalArgumentException("Parameter 'excelFileNodeRef' is required");
@@ -280,47 +270,16 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
     private void purgeDocument(GazodocExcelRow row, NodeRef nodeRef) {
         String docName = row.getName();
 
-        // VALIDATION 1: Check document state
-        String state = (String) nodeService.getProperty(nodeRef, Fiche.PROP_ETAT_DOC);
-
-        // Accept both "ARCHIVE" (key) and "Archivé" (label) for compatibility
-        boolean isArchived = "ARCHIVE".equals(state) || "Archivé".equals(state);
-        boolean isRef = "REF".equals(state) || "Valide".equals(state);
-
-        if (!isArchived) {
-            if (autoArchive && isRef) {
-                // Auto-archive document
-                if (!dryRun) {
-                    nodeService.setProperty(nodeRef, Fiche.PROP_ETAT_DOC, "ARCHIVE");
-                }
-                row.setStatus("AUTO_ARCHIVED_THEN_DELETED");
-                archivedCount++;
-                logToFileAndConsole("INFO", String.format("[%d/%d] AUTO-ARCHIVED: %s (état: %s → ARCHIVE)",
-                    foundCount, totalRows, docName, state));
-
-                // Continue with deletion
-
-            } else {
-                // Block deletion
-                row.setStatus("BLOCKED");
-                row.setStatusReason("État du document: " + state + " (doit être ARCHIVE ou Archivé)");
-                blockedCount++;
-                logToFileAndConsole("WARN", String.format("[%d/%d] BLOCKED: %s - État: %s (non archivé)",
-                    foundCount, totalRows, docName, state));
-                return;
-            }
-        }
-
-        // VALIDATION 2: Check conservation duration
-        Date dateArchivage = (Date) nodeService.getProperty(nodeRef, ContentModel.PROP_MODIFIED);
+        // VALIDATION: Check conservation duration
+        Date dateModification = (Date) nodeService.getProperty(nodeRef, ContentModel.PROP_MODIFIED);
         Integer dureeConservation = (Integer) nodeService.getProperty(nodeRef, Fiche.PROP_DUREE_CONSERVATION);
 
         if (dureeConservation == null) {
-            dureeConservation = DEFAULT_CONSERVATION_YEARS; // Règle par défaut
+            dureeConservation = DEFAULT_CONSERVATION_YEARS; // Default: 5 years
         }
 
         Calendar cal = Calendar.getInstance();
-        cal.setTime(dateArchivage);
+        cal.setTime(dateModification);
         cal.add(Calendar.YEAR, dureeConservation);
         Date dateLimitePurge = cal.getTime();
 
@@ -334,31 +293,20 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
             return;
         }
 
-        // ALL VALIDATIONS PASSED - Proceed with deletion
-
-        if (dryRun) {
-            // Simulation mode
-            row.setStatus("DRY_RUN_OK");
-            row.setStatusReason("Document serait supprimé (simulation)");
+        // VALIDATION PASSED - Proceed with deletion
+        try {
+            nodeService.deleteNode(nodeRef);
+            row.setStatus("DELETED");
+            row.setStatusReason("Document supprimé avec succès");
             deletedCount++;
-            logToFileAndConsole("INFO", String.format("[%d/%d] DRY-RUN OK: %s (serait supprimé)",
+            logToFileAndConsole("INFO", String.format("[%d/%d] ✅ DELETED: %s",
                 foundCount, totalRows, docName));
-        } else {
-            // Real deletion
-            try {
-                nodeService.deleteNode(nodeRef);
-                row.setStatus("DELETED");
-                row.setStatusReason("Document supprimé avec succès");
-                deletedCount++;
-                logToFileAndConsole("INFO", String.format("[%d/%d] ✅ DELETED: %s",
-                    foundCount, totalRows, docName));
-            } catch (Exception e) {
-                row.setStatus("DELETE_FAILED");
-                row.setStatusReason("Erreur suppression: " + e.getMessage());
-                errorCount++;
-                logToFileAndConsole("ERROR", String.format("[%d/%d] ❌ DELETE FAILED: %s - %s",
-                    foundCount, totalRows, docName, e.getMessage()));
-            }
+        } catch (Exception e) {
+            row.setStatus("DELETE_FAILED");
+            row.setStatusReason("Erreur suppression: " + e.getMessage());
+            errorCount++;
+            logToFileAndConsole("ERROR", String.format("[%d/%d] ❌ DELETE FAILED: %s - %s",
+                foundCount, totalRows, docName, e.getMessage()));
         }
     }
 
