@@ -34,12 +34,12 @@ import java.util.*;
 /**
  * WebScript pour l'export massif de documents depuis une liste Excel.
  * Lit un fichier Excel contenant les références des documents à exporter,
- * recherche chaque document dans Alfresco par cm:name, et exporte :
+ * recherche chaque document dans GAZODOC par cm:name, et exporte :
  * - Les fichiers vers un répertoire NAS
  * - Les métadonnées GAZODOC en CSV
  * - Un manifest JSON avec le résumé de l'export
  *
- * @author Alfresco SDK 3
+ * @author GAZODOC Team
  */
 public class MassExportWebScript extends DeclarativeWebScript {
 
@@ -47,7 +47,7 @@ public class MassExportWebScript extends DeclarativeWebScript {
     private static final String LOG_FILE_PREFIX = "MassExport_";
     private static final String LOG_FILE_SUFFIX = ".log";
 
-    // Alfresco services
+    // GAZODOC services
     private NodeService nodeService;
     private SearchService searchService;
     private ContentService contentService;
@@ -278,16 +278,16 @@ public class MassExportWebScript extends DeclarativeWebScript {
                 NodeRef nodeRef = searchDocumentByName(row.getName());
 
                 if (nodeRef != null) {
-                    // Export document with filename from "Nom du document" column (column 15)
-                    boolean exported = exportDocument(nodeRef, documentsDir, row.getNomDocument());
+                    // Export document into subfolder: documents/{Name}/{NomDocument}
+                    boolean exported = exportDocument(nodeRef, documentsDir, row.getName(), row.getNomDocument());
 
                     if (exported) {
                         row.setNodeRef(nodeRef.toString());
                         row.setStatus("EXPORTED");
                         foundCount++;
                         exportedCount++;
-                        logToFileAndConsole("INFO", String.format("[%d/%d] EXPORTED: %s (search: %s, file: %s)",
-                            foundCount, totalRows, row.getName(), row.getName(), row.getNomDocument()));
+                        logToFileAndConsole("INFO", String.format("[%d/%d] EXPORTED: %s/%s",
+                            foundCount, totalRows, row.getName(), row.getNomDocument()));
                     } else {
                         row.setStatus("EXPORT_FAILED");
                         row.setStatusReason("Failed to export file content");
@@ -297,7 +297,7 @@ public class MassExportWebScript extends DeclarativeWebScript {
                     }
                 } else {
                     row.setStatus("NOT_FOUND");
-                    row.setStatusReason("Document not found in Alfresco");
+                    row.setStatusReason("Document not found in GAZODOC");
                     notFoundCount++;
                     logToFileAndConsole("WARN", String.format("[%d/%d] NOT FOUND: %s",
                         notFoundCount + foundCount, totalRows, row.getName()));
@@ -313,7 +313,7 @@ public class MassExportWebScript extends DeclarativeWebScript {
     }
 
     /**
-     * Search document in Alfresco by cm:name
+     * Search document in GAZODOC by cm:name
      */
     private NodeRef searchDocumentByName(String name) {
         if (name == null || name.trim().isEmpty()) {
@@ -348,11 +348,29 @@ public class MassExportWebScript extends DeclarativeWebScript {
     }
 
     /**
-     * Export a single document to the export directory
+     * Export a single document to the export directory with subfolder structure
+     * Structure: exportDir/{folderName}/{fileName}
+     *
+     * @param nodeRef The document NodeRef
+     * @param exportDir Base export directory (documents/)
+     * @param folderName Subfolder name from "Name" column (column 1)
+     * @param desiredFileName File name from "Nom du document" column (column 15)
      */
-    private boolean exportDocument(NodeRef nodeRef, File exportDir, String desiredFileName) {
+    private boolean exportDocument(NodeRef nodeRef, File exportDir, String folderName, String desiredFileName) {
         if (!nodeService.exists(nodeRef)) {
             return false;
+        }
+
+        // Sanitize folder name to avoid filesystem issues
+        String safeFolderName = sanitizeFileName(folderName);
+        if (safeFolderName == null || safeFolderName.isEmpty()) {
+            safeFolderName = nodeRef.getId();
+        }
+
+        // Create subfolder for this document
+        File docFolder = new File(exportDir, safeFolderName);
+        if (!docFolder.exists()) {
+            docFolder.mkdirs();
         }
 
         // Use provided fileName from "Nom du document" column, fallback to cm:name if null
@@ -364,18 +382,18 @@ public class MassExportWebScript extends DeclarativeWebScript {
             }
         }
 
-        // Handle duplicate file names
-        String uniqueFileName = getUniqueFileName(fileName);
+        // Sanitize filename
+        fileName = sanitizeFileName(fileName);
 
         // Get content reader
         ContentReader reader = contentService.getReader(nodeRef, ContentModel.PROP_CONTENT);
         if (reader == null || !reader.exists()) {
-            logger.warn("No content for: " + fileName);
+            logger.warn("No content for: " + folderName + "/" + fileName);
             return false;
         }
 
         // Write to file system
-        File targetFile = new File(exportDir, uniqueFileName);
+        File targetFile = new File(docFolder, fileName);
         InputStream inputStream = null;
 
         try {
@@ -384,11 +402,23 @@ public class MassExportWebScript extends DeclarativeWebScript {
             return true;
 
         } catch (Exception e) {
-            logger.error("Failed to write file " + uniqueFileName, e);
+            logger.error("Failed to write file " + folderName + "/" + fileName, e);
             return false;
         } finally {
             IOUtils.closeQuietly(inputStream);
         }
+    }
+
+    /**
+     * Sanitize filename to remove invalid characters
+     */
+    private String sanitizeFileName(String name) {
+        if (name == null) {
+            return null;
+        }
+        // Remove or replace invalid characters for filesystem
+        // Keep: letters, digits, spaces, dots, dashes, underscores
+        return name.replaceAll("[^a-zA-Z0-9._\\-\\s]", "_").trim();
     }
 
     /**

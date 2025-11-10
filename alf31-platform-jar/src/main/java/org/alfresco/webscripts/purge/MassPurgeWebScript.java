@@ -38,7 +38,7 @@ import java.util.*;
  * - Purge transactionnelle avec rollback automatique en cas d'erreur
  * - Logs détaillés de toutes les opérations
  *
- * @author Alfresco SDK 3
+ * @author GAZODOC Team
  */
 public class MassPurgeWebScript extends DeclarativeWebScript {
 
@@ -47,7 +47,7 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
     private static final String LOG_FILE_SUFFIX = ".log";
     private static final int DEFAULT_CONSERVATION_YEARS = 5; // Durée conservation par défaut
 
-    // Alfresco services
+    // GAZODOC services
     private NodeService nodeService;
     private SearchService searchService;
     private ContentService contentService;
@@ -259,7 +259,7 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
 
                 } else {
                     row.setStatus("NOT_FOUND");
-                    row.setStatusReason("Document not found in Alfresco");
+                    row.setStatusReason("Document not found in GAZODOC");
                     notFoundCount++;
                     logToFileAndConsole("WARN", String.format("[%d/%d] NOT FOUND: %s",
                         notFoundCount + foundCount, totalRows, row.getName()));
@@ -359,7 +359,7 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
     }
 
     /**
-     * Search document in Alfresco by cm:name
+     * Search document in GAZODOC by cm:name
      */
     private NodeRef searchDocumentByName(String name) {
         if (name == null || name.trim().isEmpty()) {
