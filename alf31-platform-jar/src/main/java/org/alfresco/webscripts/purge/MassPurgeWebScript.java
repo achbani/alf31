@@ -247,8 +247,8 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
 
         for (GazodocExcelRow row : rows) {
             try {
-                // Search document by cm:name
-                NodeRef nodeRef = searchDocumentByName(row.getName());
+                // Search document by cm:name using "Nom du document" column (column 15)
+                NodeRef nodeRef = searchDocumentByName(row.getNomDocument());
 
                 if (nodeRef != null) {
                     foundCount++;
@@ -262,7 +262,7 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
                     row.setStatusReason("Document not found in Alfresco");
                     notFoundCount++;
                     logToFileAndConsole("WARN", String.format("[%d/%d] NOT FOUND: %s",
-                        notFoundCount + foundCount, totalRows, row.getName()));
+                        notFoundCount + foundCount, totalRows, row.getNomDocument()));
                 }
 
             } catch (Exception e) {
@@ -278,7 +278,7 @@ public class MassPurgeWebScript extends DeclarativeWebScript {
      * Validate and purge a single document
      */
     private void purgeDocument(GazodocExcelRow row, NodeRef nodeRef) {
-        String docName = row.getName();
+        String docName = row.getNomDocument();
 
         // VALIDATION 1: Check document state
         String state = (String) nodeService.getProperty(nodeRef, Fiche.PROP_ETAT_DOC);

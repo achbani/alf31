@@ -262,8 +262,8 @@ public class MassExportWebScript extends DeclarativeWebScript {
 
         for (GazodocExcelRow row : rows) {
             try {
-                // Search document by cm:name
-                NodeRef nodeRef = searchDocumentByName(row.getName());
+                // Search document by cm:name using "Nom du document" column (column 15)
+                NodeRef nodeRef = searchDocumentByName(row.getNomDocument());
 
                 if (nodeRef != null) {
                     // Export document
@@ -275,20 +275,20 @@ public class MassExportWebScript extends DeclarativeWebScript {
                         foundCount++;
                         exportedCount++;
                         logToFileAndConsole("INFO", String.format("[%d/%d] EXPORTED: %s",
-                            foundCount, totalRows, row.getName()));
+                            foundCount, totalRows, row.getNomDocument()));
                     } else {
                         row.setStatus("EXPORT_FAILED");
                         row.setStatusReason("Failed to export file content");
                         errorCount++;
                         logToFileAndConsole("WARN", String.format("[%d/%d] FAILED: %s",
-                            foundCount, totalRows, row.getName()));
+                            foundCount, totalRows, row.getNomDocument()));
                     }
                 } else {
                     row.setStatus("NOT_FOUND");
                     row.setStatusReason("Document not found in Alfresco");
                     notFoundCount++;
                     logToFileAndConsole("WARN", String.format("[%d/%d] NOT FOUND: %s",
-                        notFoundCount + foundCount, totalRows, row.getName()));
+                        notFoundCount + foundCount, totalRows, row.getNomDocument()));
                 }
 
             } catch (Exception e) {
