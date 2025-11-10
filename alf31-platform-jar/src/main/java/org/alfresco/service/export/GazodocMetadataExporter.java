@@ -18,7 +18,7 @@ import java.util.List;
  * Service d'export des métadonnées GAZODOC au format CSV.
  * Extrait toutes les propriétés GAZODOC d'un document et les exporte dans un fichier CSV.
  *
- * @author Alfresco SDK 3
+ * @author GAZODOC Team
  */
 public class GazodocMetadataExporter {
 
@@ -92,8 +92,7 @@ public class GazodocMetadataExporter {
         writer.write("Niveau de confidentialité,");
         writer.write("Destinataire(s),");
         writer.write("Date d'application,");
-        writer.write("NodeRef,");
-        writer.write("Chemin Alfresco");
+        writer.write("NodeRef");
         writer.newLine();
     }
 
@@ -134,11 +133,11 @@ public class GazodocMetadataExporter {
         // Durée de validité
         writer.write(csvValue(getProperty(nodeRef, Fiche.PROP_DUREE_VALIDITE)));
 
-        // Domaine métier
-        writer.write(csvValue(getProperty(nodeRef, Fiche.PROP_DOMAINE_METIER)));
+        // Domaine métier (catégorie - résolution NodeRef → nom)
+        writer.write(csvValue(getCategoryProperty(nodeRef, Fiche.PROP_DOMAINE_METIER)));
 
-        // Sous domaine métier
-        writer.write(csvValue(getProperty(nodeRef, Fiche.PROP_DELEGATION)));
+        // Sous domaine métier (catégorie - résolution NodeRef → nom)
+        writer.write(csvValue(getCategoryProperty(nodeRef, Fiche.PROP_DELEGATION)));
 
         // État du document
         writer.write(csvValue(getProperty(nodeRef, Fiche.PROP_ETAT_DOC)));
@@ -149,8 +148,8 @@ public class GazodocMetadataExporter {
         // Annule et remplace
         writer.write(csvValue(getProperty(nodeRef, Fiche.PROP_ANNULE_REMPLACE)));
 
-        // Mots-clés
-        writer.write(csvValue(getProperty(nodeRef, Fiche.PROP_MOTS_CLEFS)));
+        // Mots-clés (catégorie - résolution NodeRef → nom, peut être multiple)
+        writer.write(csvValue(getCategoryProperty(nodeRef, Fiche.PROP_MOTS_CLEFS)));
 
         // Résumé (cm:description)
         writer.write(csvValue(getProperty(nodeRef, ContentModel.PROP_DESCRIPTION)));
@@ -164,20 +163,20 @@ public class GazodocMetadataExporter {
         // Contributeur(s)
         writer.write(csvValue(getProperty(nodeRef, Fiche.PROP_CONTRIBUTEUR)));
 
-        // Type de document
-        writer.write(csvValue(getProperty(nodeRef, Fiche.PROP_TYPE_DOC)));
+        // Type de document (catégorie - résolution NodeRef → nom)
+        writer.write(csvValue(getCategoryProperty(nodeRef, Fiche.PROP_TYPE_DOC)));
 
-        // Région
-        writer.write(csvValue(getProperty(nodeRef, Fiche.PROP_REGION)));
+        // Région (catégorie - résolution NodeRef → nom)
+        writer.write(csvValue(getCategoryProperty(nodeRef, Fiche.PROP_REGION)));
 
-        // Processus
-        writer.write(csvValue(getProperty(nodeRef, Fiche.PROP_PROCESSUS)));
+        // Processus (catégorie - résolution NodeRef → nom)
+        writer.write(csvValue(getCategoryProperty(nodeRef, Fiche.PROP_PROCESSUS)));
 
         // Savoir-Faire
         writer.write(csvValue(getProperty(nodeRef, Fiche.PROP_SAVOIR_FAIRE)));
 
-        // Origine
-        writer.write(csvValue(getProperty(nodeRef, Fiche.PROP_ORIGINE)));
+        // Origine (catégorie - résolution NodeRef → nom)
+        writer.write(csvValue(getCategoryProperty(nodeRef, Fiche.PROP_ORIGINE)));
 
         // Niveau de confidentialité
         writer.write(csvValue(getProperty(nodeRef, Fiche.PROP_CONFIDENTIALITE)));
@@ -190,9 +189,6 @@ public class GazodocMetadataExporter {
 
         // NodeRef
         writer.write(csvValue(nodeRef.toString()));
-
-        // Chemin Alfresco
-        writer.write(csvValue(nodeService.getPath(nodeRef).toString()));
 
         writer.newLine();
     }
@@ -214,6 +210,71 @@ public class GazodocMetadataExporter {
             return DATE_FORMAT.format((Date) value);
         }
         return "";
+    }
+
+    /**
+     * Récupère une propriété catégorie et résout les NodeRef en noms
+     * Gère à la fois les NodeRef uniques et les listes de NodeRef
+     */
+    private String getCategoryProperty(NodeRef nodeRef, QName property) {
+        Object value = nodeService.getProperty(nodeRef, property);
+
+        if (value == null) {
+            return "";
+        }
+
+        // Si c'est une liste de NodeRef (comme pour les mots-clés)
+        if (value instanceof List) {
+            List<?> list = (List<?>) value;
+            StringBuilder result = new StringBuilder();
+            for (int i = 0; i < list.size(); i++) {
+                Object item = list.get(i);
+                if (item instanceof NodeRef) {
+                    String categoryName = resolveCategoryName((NodeRef) item);
+                    result.append(categoryName);
+                    if (i < list.size() - 1) {
+                        result.append("; ");
+                    }
+                } else {
+                    result.append(item.toString());
+                    if (i < list.size() - 1) {
+                        result.append("; ");
+                    }
+                }
+            }
+            return result.toString();
+        }
+
+        // Si c'est un NodeRef unique
+        if (value instanceof NodeRef) {
+            return resolveCategoryName((NodeRef) value);
+        }
+
+        // Sinon retourner tel quel
+        return value.toString();
+    }
+
+    /**
+     * Résout un NodeRef de catégorie en nom lisible
+     */
+    private String resolveCategoryName(NodeRef categoryRef) {
+        try {
+            if (categoryRef != null && nodeService.exists(categoryRef)) {
+                // Récupérer le nom de la catégorie (cm:name)
+                Object name = nodeService.getProperty(categoryRef, ContentModel.PROP_NAME);
+                if (name != null) {
+                    return name.toString();
+                }
+                // Fallback sur le titre si le nom n'existe pas
+                Object title = nodeService.getProperty(categoryRef, ContentModel.PROP_TITLE);
+                if (title != null) {
+                    return title.toString();
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to resolve category name for NodeRef: " + categoryRef, e);
+        }
+        return categoryRef != null ? categoryRef.toString() : "";
     }
 
     /**
